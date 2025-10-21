@@ -126,7 +126,7 @@ jobs:
             cd libmicrohttpd-0.9.71
             echo "###########################编译microhttpd依赖库########################"
             # 针对 ARM 交叉编译添加 -D_FILE_OFFSET_BITS=64
-            if [[ "$TARGET" == "arm-linux-eabi" || "$TARGET" == "arm-linux-eabihf" ]]; then
+            if [[ "$TARGET" == "arm-linux-eabi" || "$TARGET" == "arm-linux-eabihf" || "$TARGET" == "armv7l-linux-eabihf" || "$TARGET" == "armv7m-linux-eabi" ]]; then
               export CFLAGS="$CFLAGS -D_FILE_OFFSET_BITS=64"
               # 在 configure 前
               sed -i 's/OFF64_T_MAX/OFF_T_MAX/g' src/microhttpd/mhd_send.c
