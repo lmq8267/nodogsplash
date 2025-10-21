@@ -84,9 +84,8 @@ state_file_export(const char *path)
 	GOTO_ERR(err_clist, json_object_object_add(top, "clients", clist));
 
 	if ((rc = json_object_to_file(path, top))) {
-		debug(LOG_ERR, "Failed to write nodogsplash to a file, json_object_to_file() failed with rc %d."
-			       " json-c failure: %s",
-		      rc, json_util_get_last_err());
+		debug(LOG_ERR, "写入 nodogsplash 文件失败，json_object_to_file() 返回错误码【%d】，json-c 错误信息: %s",
+      			rc, json_util_get_last_err());
 		return -EINVAL;
 	}
 
@@ -151,19 +150,19 @@ state_file_import_client(json_object *json_client)
 
 	client = client_list_find(mac, ip);
 	if (client) {
-		debug(LOG_ERR, "Found a duplicate client containing same ip & mac (%s / %s) !", ip, mac);
+		debug(LOG_ERR, "发现一个 IP 和 MAC 相同的重复客户端【%s / %s】！", ip, mac);
 		return -1;
 	}
 
 	client = client_list_find_by_id(id);
 	if (client) {
-		debug(LOG_ERR, "Found a duplicate client containing same id (%d)!", id);
+		debug(LOG_ERR, "发现一个包含相同 ID 的重复客户端【%d】!", id);
 		return -1;
 	}
 
 	client = client_list_add_client(mac, ip);
 	if (!client) {
-		debug(LOG_ERR, "Failed to add client with mac %s, ip %s. Maybe invalid mac or ip?", mac, ip);
+		debug(LOG_ERR, "添加客户端失败，MAC=【%s】IP=【%s】，可能是无效的 MAC 或 IP？", mac, ip);
 		return -1;
 	}
 
@@ -209,10 +208,10 @@ state_file_import(const char *path)
 	rc = stat(path, &statbuf);
 	if (rc) {
 		if (errno == ENOENT) {
-			debug(LOG_DEBUG, "State file doesn't exist. Can't load old state.");
+			debug(LOG_DEBUG, "状态文件不存在，无法加载旧状态");
 			return 1;
 		} else {
-			debug(LOG_DEBUG, "State file couldn't accessed. errno %d - %s.", errno, strerror(errno));
+			debug(LOG_DEBUG, "无法访问状态文件。错误号 %d - %s。", errno, strerror(errno));
 			return 2;
 		}
 	}
@@ -221,21 +220,21 @@ state_file_import(const char *path)
 
 	json_object *top = json_object_from_file(path);
 	if (!top) {
-		debug(LOG_ERR, "Failed to parse state file %s", json_util_get_last_err());
+		debug(LOG_ERR, "无法解析状态文件【%s】", json_util_get_last_err());
 		return -1;
 	}
 
 	int64_t version = -1;
 	JSON_GET_FIELD(version, err, top, "version", json_type_int, json_object_get_int64);
 	if (version != NDS_JSON_EXPORT_VERSION) {
-		debug(LOG_ERR, "Invalid version of state file");
+		debug(LOG_ERR, "状态文件版本无效");
 		goto err;
 	}
 
 	const char *name = NULL;
 	JSON_GET_FIELD(name, err, top, "name", json_type_string, json_object_get_string);
 	if (strcmp(name, "nodogsplash")) {
-		debug(LOG_ERR, "Invalid name in state file. Expected %s, but found %s",
+		debug(LOG_ERR, "状态文件中名称无效。期望为【%s】但实际为【%s】",
 		      "nodogsplash", name);
 		goto err;
 	}
@@ -248,17 +247,17 @@ state_file_import(const char *path)
 	for (int i = 0; i < len; i++) {
 		json_object *client = json_object_array_get_idx(clients, i);
 		if (!json_object_is_type(client, json_type_object)) {
-			debug(LOG_ERR, "clients: Invalid type of array entry %d in state file. Expected %s, but found %s",
-			      i,
-			      json_type_to_name(json_type_object),
-			      json_type_to_name(json_object_get_type(client)));
+			debug(LOG_ERR, "客户端: 状态文件中数组条目【%d】类型无效。期望类型为【%s】，但实际类型为【%s】",
+      				i,
+      				json_type_to_name(json_type_object),
+      				json_type_to_name(json_object_get_type(client)));
 			UNLOCK_CLIENT_LIST();
 			goto err;
 		}
 
 		rc = state_file_import_client(client);
 		if (rc) {
-			debug(LOG_ERR, "clients: Invalid client entry %s", json_object_to_json_string(client));
+			debug(LOG_ERR, "客户端：客户端条目无效【%s】", json_object_to_json_string(client));
 			UNLOCK_CLIENT_LIST();
 			rc = -3;
 			goto err;

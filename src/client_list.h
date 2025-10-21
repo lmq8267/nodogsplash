@@ -97,15 +97,15 @@ void client_list_delete(t_client *client);
 void client_list_flush(void);
 
 #define LOCK_CLIENT_LIST() do { \
-	debug(LOG_DEBUG, "Locking client list"); \
+	debug(LOG_DEBUG, "锁定客户端列表"); \
 	pthread_mutex_lock(&client_list_mutex); \
-	debug(LOG_DEBUG, "Client list locked"); \
+	debug(LOG_DEBUG, "客户端列表已锁定"); \
 } while (0)
 
 #define UNLOCK_CLIENT_LIST() do { \
-	debug(LOG_DEBUG, "Unlocking client list"); \
+	debug(LOG_DEBUG, "解锁客户端列表"); \
 	pthread_mutex_unlock(&client_list_mutex); \
-	debug(LOG_DEBUG, "Client list unlocked"); \
+	debug(LOG_DEBUG, "客户端列表已解锁"); \
 } while (0)
 
 extern pthread_mutex_t client_list_mutex;

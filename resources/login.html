@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>$gatewayname 热点认证</title>
+<link rel="shortcut icon" href="/splash.jpg" type="image/x-icon">
+
+<style>
+/* 全局样式 */
+body, html {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    font-family: "Microsoft YaHei", "SimHei", "Arial", sans-serif;
+    background: linear-gradient(135deg, #1e3c72, #2a5298);
+    color: #fff;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+/* 页面容器 */
+.container {
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(10px);
+    border-radius: 20px;
+    padding: 40px;
+    text-align: center;
+    max-width: 500px;
+    width: 90%;
+    animation: fadeIn 1.2s ease-in-out;
+}
+
+/* 页面渐入动画 */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* 标题样式 */
+h1 {
+    font-size: 2rem;
+    margin-bottom: 20px;
+    color: #ffeb3b;
+    text-shadow: 1px 1px 5px rgba(0,0,0,0.5);
+    animation: pulse 2s infinite;
+}
+
+/* 标题脉冲动画 */
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+/* 图片样式 */
+img {
+    max-width: 100%;
+    border-radius: 15px;
+    margin-bottom: 20px;
+    animation: slideUp 1.2s ease-in-out;
+}
+
+/* 图片滑入动画 */
+@keyframes slideUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* 欢迎提示文字 */
+.welcome-text {
+    font-size: 1.2rem;
+    margin-bottom: 30px;
+}
+
+/* 表单样式 */
+form {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 15px;
+}
+
+/* 输入框容器 */
+.input-wrapper {
+    position: relative;
+    width: 50%; /* 缩短宽度 */
+    display: flex;
+    align-items: center;
+}
+
+/* 文本输入框样式 */
+input[type="text"], input[type="password"] {
+    width: 100%;
+    padding: 10px;
+    border-radius: 10px;
+    border: none;
+    outline: none;
+    padding-right: 40px; /* 为眼睛图标留空间 */
+    font-size: 1rem;
+    background: rgba(255,255,255,0.1);
+    color: #fff;
+}
+
+/* 提交按钮样式 */
+input[type="submit"] {
+    width: 30%; /* 缩短宽度 */
+    padding: 10px;
+    border-radius: 10px;
+    border: none;
+    background: linear-gradient(90deg, #ff5722, #ff9800);
+    color: #fff;
+    font-weight: bold;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+/* 按钮悬停动画 */
+input[type="submit"]:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+}
+
+/* SVG 眼睛图标 */
+.eye-icon {
+    position: absolute;
+    right: 5px;
+    width: 22px;   /* 缩小图标 */
+    height: 15px;  /* 缩小图标 */
+    cursor: pointer;
+    background: rgba(255,255,255,0.2); /* 半透明背景 */
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 2px;
+    stroke-width: 2;
+}
+
+/* 错误提示固定在输入框下方 */
+.error-message {
+    position: absolute;
+    left: 0;
+    top: 100%; /* 紧贴输入框下方 */
+    margin-top: 2px;
+    color: red;
+    font-size: 0.8rem;
+    min-height: 1em;
+}
+
+/* 版权信息 */
+.copy-right {
+    margin-top: 30px;
+    font-size: 0.8rem;
+    color: #ccc;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<h1>$gatewayname 热点认证</h1>
+
+<img src="/splash.jpg" alt="">
+
+<div class="welcome-text">请输入账号密码点击“认证”访问互联网。</div>
+
+<!-- 
+内容说明：
+	Nodogsplash (NDS) 默认在客户端设备 Captive Portal 检测 (CPD) 
+	尝试访问互联网的 80 端口时，提供此 splash 页面 (splash.html)。
+
+	你可以在此文件中内嵌 CSS，也可以像示例一样使用独立 .css 文件。
+
+	设计自定义 Splash 页时，请注意：
+		出于安全原因，许多 CPD 实现：
+		- 客户端认证后立即关闭浏览器。
+		- 禁止 href 链接。
+		- 禁止下载外部文件（包括 .css 和 .js）。
+		- 禁止执行 JavaScript。
+
+认证说明：
+	客户端通过提交 HTTP 表单 (method=GET) 认证，
+	需提交 $authaction、$tok、$redir。
+
+	也可以使用 href 链接到 $authtarget 认证，
+	但许多 CPD 阻止 href 链接，可能并非所有设备都能使用。
+
+可用变量：
+	error_msg: $error_msg
+	gatewayname: $gatewayname
+	tok: $tok
+	redir: $redir
+	authaction: $authaction
+	denyaction: $denyaction
+	authtarget: $authtarget
+	clientip: $clientip
+	clientmac: $clientmac
+	clientupload: $clientupload
+	clientdownload: $clientdownload
+	gatewaymac: $gatewaymac
+	nclients: $nclients
+	maxclients: $maxclients
+	uptime: $uptime
+
+BinAuth 附加变量：
+	可通过 HTTP GET 传回，或者附加到 authtarget 链接查询字符串：
+	username
+	password
+-->
+
+<!-- 认证表单 -->
+    <form method="GET" action="$authaction">
+    <input type="hidden" name="tok" value="$tok">
+    <input type="hidden" name="redir" value="$redir">
+
+    <!-- 用户名输入框 -->
+     <div class="input-wrapper">
+        <input type="text" name="username" maxlength="20" placeholder="用户名" id="username-field">
+        <div id="username-error" class="error-message"></div>
+    </div><br>
+
+    <div class="input-wrapper" style="margin-bottom: 20px;">
+        <input type="password" name="password" maxlength="30" placeholder="密码" id="password-field">
+        <svg id="toggle-eye" class="eye-icon" viewBox="0 0 24 24">
+            <path id="eye-path" stroke="white" fill="none" d="M2 12c1.73-4.39 6-7.5 11-7.5s9.27 3.11 11 7.5c-1.73 4.39-6 7.5-11 7.5S3.73 16.39 2 12z M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z M2 2l20 20"/>
+        </svg>
+        <div id="password-error" class="error-message"></div>
+    </div>
+
+    <input type="submit" value="认证" id="submit-btn" style="margin-top: 20px;">
+    
+    <!-- 显示本机 IP 和 MAC，一行显示 -->
+    <div class="client-info" style="
+    	margin-top: 20px;
+    	font-size: 1rem;
+    	color: #fff;
+    	display: flex;
+    	justify-content: center;
+    	gap: 40px;        /* IP 和 MAC 之间的间距 */
+    	background: rgba(255,255,255,0.1);
+    	padding: 10px 20px;
+    	border-radius: 10px;
+    	box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+    	font-weight: bold;
+    ">
+    <div><strong>本机 IP</strong> $clientip</div>
+    <div><strong>本机 MAC</strong> $clientmac</div>
+    </div>
+
+</form>
+<div class="copy-right">
+    版权所有 &copy; Nodogsplash 贡献者 2004-2025。<br>本软件依据 GNU GPL 许可证发布。
+</div>
+</div>
+
+<script>
+const usernameField = document.getElementById('username-field');
+const passwordField = document.getElementById('password-field');
+const usernameError = document.getElementById('username-error');
+const passwordError = document.getElementById('password-error');
+const submitBtn = document.getElementById('submit-btn');
+const toggleEye = document.getElementById('toggle-eye');
+const eyePath = document.getElementById('eye-path');
+
+// 密码显示切换
+let isPasswordVisible = false;
+toggleEye.addEventListener('click', () => {
+    isPasswordVisible = !isPasswordVisible;
+    passwordField.type = isPasswordVisible ? 'text' : 'password';
+    eyePath.setAttribute('d', isPasswordVisible ?
+        'M2 12c1.73-4.39 6-7.5 11-7.5s9.27 3.11 11 7.5c-1.73 4.39-6 7.5-11 7.5S3.73 16.39 2 12z M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z' :
+        'M2 12c1.73-4.39 6-7.5 11-7.5s9.27 3.11 11 7.5c-1.73 4.39-6 7.5-11 7.5S3.73 16.39 2 12z M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z M2 2l20 20');
+});
+
+// 禁止的特殊字符
+const forbiddenChars = /[`$&|;<>()[\]{}"'\\\/!#%^*?~,@\ -]/;
+
+// 用户名实时检查
+usernameField.addEventListener('input', () => {
+    const val = usernameField.value;
+    let messages = [];
+    if(val.length > 20) messages.push('用户名最多20个字符');
+    if(forbiddenChars.test(val)) messages.push('用户名包含非法字符');
+    if(messages.length > 0){
+        usernameField.style.border = '2px solid red';
+        usernameError.textContent = messages.join('，');
+    } else {
+        usernameField.style.border = '';
+        usernameError.textContent = '';
+    }
+    updateSubmit();
+});
+
+// 密码实时检查
+passwordField.addEventListener('input', () => {
+    const pw = passwordField.value;
+    let messages = [];
+    //if(pw.length < 5) messages.push('密码至少5个字符');
+    if(pw.length > 30) messages.push('密码不能超过30个字符');
+    if(forbiddenChars.test(pw)) messages.push('密码包含非法字符');
+
+    if(messages.length > 0){
+        passwordField.style.border = '2px solid red';
+        passwordError.textContent = messages.join('，');
+    } else {
+        passwordField.style.border = '';
+        passwordError.textContent = '';
+    }
+    updateSubmit();
+});
+
+// 控制提交按钮
+function updateSubmit(){
+    if(usernameError.textContent || passwordError.textContent || passwordField.value === ''){
+        submitBtn.disabled = true;
+    } else {
+        submitBtn.disabled = false;
+    }
+}
+
+// 初始禁用提交按钮
+submitBtn.disabled = true;
+
+// 提交前再次检查
+document.getElementById('auth-form').addEventListener('submit', e=>{
+    if(submitBtn.disabled) e.preventDefault();
+});
+</script>
+
+</body>
+</html>

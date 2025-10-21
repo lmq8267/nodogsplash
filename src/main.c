@@ -95,30 +95,30 @@ sigchld_handler(int s)
 	int	status;
 	pid_t rc;
 
-	debug(LOG_DEBUG, "SIGCHLD handler: Trying to reap a child");
+	debug(LOG_DEBUG, "SIGCHLD 处理程序：尝试回收子进程");
 
 	rc = waitpid(-1, &status, WNOHANG | WUNTRACED);
 
 	if (rc == -1) {
 		if (errno == ECHILD) {
-			debug(LOG_DEBUG, "SIGCHLD handler: waitpid(): No child exists now.");
+			debug(LOG_DEBUG, "SIGCHLD 处理程序：waitpid()：当前没有子进程。");
 		} else {
-			debug(LOG_ERR, "SIGCHLD handler: Error reaping child (waitpid() returned -1): %s", strerror(errno));
+			debug(LOG_ERR, "SIGCHLD 处理程序：回收子进程出错 (waitpid() 返回 -1)：%s", strerror(errno));
 		}
 		return;
 	}
 
 	if (WIFEXITED(status)) {
-		debug(LOG_DEBUG, "SIGCHLD handler: Process PID %d exited normally, status %d", (int)rc, WEXITSTATUS(status));
+		debug(LOG_DEBUG, "SIGCHLD 处理程序：子进程 PID【%d】正常退出，状态【%d】", (int)rc, WEXITSTATUS(status));
 		return;
 	}
 
 	if (WIFSIGNALED(status)) {
-		debug(LOG_DEBUG, "SIGCHLD handler: Process PID %d exited due to signal %d", (int)rc, WTERMSIG(status));
+		debug(LOG_DEBUG, "SIGCHLD 处理程序：子进程 PID【%d】因信号【%d】退出", (int)rc, WTERMSIG(status));
 		return;
 	}
 
-	debug(LOG_DEBUG, "SIGCHLD handler: Process PID %d changed state, status %d not exited, ignoring", (int)rc, status);
+	debug(LOG_DEBUG, "SIGCHLD 处理程序：子进程 PID【%d】状态改变，状态【%d】未退出，忽略", (int)rc, status);
 	return;
 }
 
@@ -129,21 +129,21 @@ termination_handler(int s)
 {
 	static pthread_mutex_t sigterm_mutex = PTHREAD_MUTEX_INITIALIZER;
 
-	debug(LOG_NOTICE, "Handler for termination caught signal %d", s);
+	debug(LOG_NOTICE, "终止信号处理程序捕获到信号【%d】", s);
 
 	/* Makes sure we only call iptables_fw_destroy() once. */
 	if (pthread_mutex_trylock(&sigterm_mutex)) {
-		debug(LOG_INFO, "Another thread already began global termination handler. I'm exiting");
+		debug(LOG_INFO, "已有线程开始全局终止处理，此次退出");
 		pthread_exit(NULL);
 	} else {
-		debug(LOG_INFO, "Cleaning up and exiting");
+		debug(LOG_INFO, "正在清理并退出");
 	}
 
 #ifdef WITH_STATE_FILE
 	if (write_state_file) {
 		s_config *config = config_get_config();
 		if (config->statefile && strlen(config->statefile)) {
-			debug(LOG_INFO, "Writing current state to file %s", config->statefile);
+			debug(LOG_INFO, "将当前状态写入文件【%s】", config->statefile);
 			state_file_export(config->statefile);
 		}
 	}
@@ -151,7 +151,7 @@ termination_handler(int s)
 
 	auth_client_deauth_all();
 
-	debug(LOG_INFO, "Flushing firewall rules...");
+	debug(LOG_INFO, "刷新防火墙规则 ...");
 	iptables_fw_destroy();
 
 	/* XXX Hack
@@ -160,11 +160,11 @@ termination_handler(int s)
 	 * that use that
 	 */
 	if (tid_client_check) {
-		debug(LOG_INFO, "Explicitly killing the fw_counter thread");
+		debug(LOG_INFO, "明确终止 fw_counter 线程");
 		pthread_kill(tid_client_check, SIGKILL);
 	}
 
-	debug(LOG_NOTICE, "Exiting...");
+	debug(LOG_NOTICE, "退出...");
 	exit(s == 0 ? 1 : 0);
 }
 
@@ -177,12 +177,12 @@ init_signals(void)
 {
 	struct sigaction sa;
 
-	debug(LOG_DEBUG, "Setting SIGCHLD handler to sigchld_handler()");
+	debug(LOG_DEBUG, "将 SIGCHLD 处理程序设置为 sigchld_handler()");
 	sa.sa_handler = sigchld_handler;
 	sigemptyset(&sa.sa_mask);
 	sa.sa_flags = SA_RESTART;
 	if (sigaction(SIGCHLD, &sa, NULL) == -1) {
-		debug(LOG_ERR, "sigaction(): %s", strerror(errno));
+		debug(LOG_ERR, "sigaction():【%s】", strerror(errno));
 		exit(1);
 	}
 
@@ -192,33 +192,33 @@ init_signals(void)
 	 * and do nothing. The alternative is to exit. SIGPIPE are harmless
 	 * if not desirable.
 	 */
-	debug(LOG_DEBUG, "Setting SIGPIPE  handler to SIG_IGN");
+	debug(LOG_DEBUG, "将 SIGPIPE 处理程序设置为 SIG_IGN");
 	sa.sa_handler = SIG_IGN;
 	if (sigaction(SIGPIPE, &sa, NULL) == -1) {
-		debug(LOG_ERR, "sigaction(): %s", strerror(errno));
+		debug(LOG_ERR, "sigaction():【%s】", strerror(errno));
 		exit(1);
 	}
 
-	debug(LOG_DEBUG, "Setting SIGTERM, SIGQUIT, SIGINT  handlers to termination_handler()");
+	debug(LOG_DEBUG, "将 SIGTERM、SIGQUIT、SIGINT 处理程序设置为 termination_handler()");
 	sa.sa_handler = termination_handler;
 	sigemptyset(&sa.sa_mask);
 	sa.sa_flags = SA_RESTART;
 
 	/* Trap SIGTERM */
 	if (sigaction(SIGTERM, &sa, NULL) == -1) {
-		debug(LOG_ERR, "sigaction(): %s", strerror(errno));
+		debug(LOG_ERR, "sigaction():【%s】", strerror(errno));
 		exit(1);
 	}
 
 	/* Trap SIGQUIT */
 	if (sigaction(SIGQUIT, &sa, NULL) == -1) {
-		debug(LOG_ERR, "sigaction(): %s", strerror(errno));
+		debug(LOG_ERR, "sigaction():【%s】", strerror(errno));
 		exit(1);
 	}
 
 	/* Trap SIGINT */
 	if (sigaction(SIGINT, &sa, NULL) == -1) {
-		debug(LOG_ERR, "sigaction(): %s", strerror(errno));
+		debug(LOG_ERR, "sigaction():【%s】", strerror(errno));
 		exit(1);
 	}
 }
@@ -237,19 +237,19 @@ main_loop(void)
 
 	/* Set the time when nodogsplash started */
 	if (!started_time) {
-		debug(LOG_INFO, "Setting started_time");
+		debug(LOG_INFO, "设置started_time");
 		started_time = time(NULL);
 	} else if (started_time < MINIMUM_STARTED_TIME) {
-		debug(LOG_WARNING, "Detected possible clock skew - re-setting started_time");
+		debug(LOG_WARNING, "检测到可能的时钟偏差 - 重新设置started_time");
 		started_time = time(NULL);
 	}
 
 	/* If we don't have the Gateway IP address, get it. Exit on failure. */
 	if (!config->gw_ip) {
-		debug(LOG_DEBUG, "Finding IP address of %s", config->gw_interface);
+		debug(LOG_DEBUG, "正在查找 【%s】 的 IP 地址", config->gw_interface);
 		config->gw_ip = get_iface_ip(config->gw_interface, config->ip6);
 		if (!config->gw_ip) {
-			debug(LOG_ERR, "Could not get IP address information of %s, exiting...", config->gw_interface);
+			debug(LOG_ERR, "无法获取 【%s】 的 IP 地址信息，退出 ...", config->gw_interface);
 			exit(1);
 		}
 	}
@@ -278,10 +278,10 @@ main_loop(void)
 	}
 
 	if ((config->gw_mac = get_iface_mac(config->gw_interface)) == NULL) {
-		debug(LOG_ERR, "Could not get MAC address information of %s, exiting...", config->gw_interface);
+		debug(LOG_ERR, "无法获取 【%s】 的 MAC 地址信息，退出 ...", config->gw_interface);
 		exit(1);
 	}
-	debug(LOG_NOTICE, "Detected gateway %s at %s (%s)", config->gw_interface, config->gw_ip, config->gw_mac);
+	debug(LOG_NOTICE, "检测到网关IP地址 【%s】 接口名称 【%s】 MAC地址 【%s】", config->gw_ip, config->gw_interface, config->gw_mac);
 
 	/* Initializes the web server */
 	if ((webserver = MHD_start_daemon(
@@ -292,16 +292,16 @@ main_loop(void)
 						MHD_OPTION_CONNECTION_TIMEOUT, (unsigned int) 120,
 						MHD_OPTION_LISTENING_ADDRESS_REUSE, 1,
 						MHD_OPTION_END)) == NULL) {
-		debug(LOG_ERR, "Could not create web server: %s", strerror(errno));
+		debug(LOG_ERR, "无法创建 Web 认证服务器: 【%s】", strerror(errno));
 		exit(1);
 	}
 
 	/* TODO: set listening socket */
-	debug(LOG_NOTICE, "Created web server on %s", config->gw_http_name);
+	debug(LOG_NOTICE, "已创建 Web 认证服务器： 【%s】", config->gw_http_name);
 
 	if (config->binauth) {
-		debug(LOG_NOTICE, "Binauth is Enabled.\n");
-		debug(LOG_NOTICE, "Binauth Script is %s\n", config->binauth);
+		debug(LOG_NOTICE, "Binauth 已启用！\n");
+		debug(LOG_NOTICE, "Binauth 脚本路径： 【%s】\n", config->binauth);
 	}
 
 	/* Reset the firewall (cleans it, in case we are restarting after nodogsplash crash) */
@@ -309,34 +309,34 @@ main_loop(void)
 
 	/* Then initialize it */
 	if (iptables_fw_init() != 0) {
-		debug(LOG_ERR, "Error initializing firewall rules! Cleaning up");
+		debug(LOG_ERR, "初始化防火墙规则时出错！正在清理");
 		iptables_fw_destroy();
-		debug(LOG_ERR, "Exiting because of error initializing firewall rules");
+		debug(LOG_ERR, "由于初始化防火墙规则时出错而退出");
 		exit(1);
 	}
 
 #ifdef WITH_STATE_FILE
 	result = state_file_import(config->statefile);
 	if (result < 0) {
-		debug(LOG_ERR, "Failed to parse state file. Will overwrite old state.");
-		debug(LOG_ERR, "Reset clients and firewall state.");
+		debug(LOG_ERR, "无法解析状态文件，将覆盖旧状态");
+		debug(LOG_ERR, "重置客户端和防火墙状态");
 		iptables_fw_destroy();
 		if (iptables_fw_init() != 0) {
-			debug(LOG_ERR, "Error initializing firewall rules! Cleaning up");
+			debug(LOG_ERR, "初始化防火墙规则时出错！正在清理");
 			iptables_fw_destroy();
-			debug(LOG_ERR, "Exiting because of error initializing firewall rules");
+			debug(LOG_ERR, "由于初始化防火墙规则时出错而退出");
 			exit(1);
 		}
 		client_list_flush();
 	} else if (result > 0) {
-		debug(LOG_ERR, "Failed to open state file for reading. Ignoring.");
+		debug(LOG_ERR, "无法打开状态文件进行读取，已忽略");
 	}
 #endif
 
 	/* Start client statistics and timeout clean-up thread */
 	result = pthread_create(&tid_client_check, NULL, thread_client_timeout_check, NULL);
 	if (result != 0) {
-		debug(LOG_ERR, "FATAL: Failed to create thread_client_timeout_check - exiting");
+		debug(LOG_ERR, "严重错误：无法创建thread_client_timeout_check - 退出");
 		termination_handler(0);
 	}
 	pthread_detach(tid_client_check);
@@ -344,14 +344,14 @@ main_loop(void)
 	/* Start control thread */
 	result = pthread_create(&tid, NULL, thread_ndsctl, (void *)(config->ndsctl_sock));
 	if (result != 0) {
-		debug(LOG_ERR, "FATAL: Failed to create thread_ndsctl - exiting");
+		debug(LOG_ERR, "严重错误：无法创建thread_ndsctl - 退出");
 		termination_handler(1);
 	}
 
 	write_state_file = true;
 	result = pthread_join(tid, NULL);
 	if (result) {
-		debug(LOG_INFO, "Failed to wait for nodogsplash thread.");
+		debug(LOG_INFO, "无法等待 nodogsplash 线程");
 	}
 	MHD_stop_daemon(webserver);
 	termination_handler(result);
@@ -368,7 +368,7 @@ int main(int argc, char **argv)
 	parse_commandline(argc, argv);
 
 	/* Initialize the config */
-	debug(LOG_INFO, "Reading and validating configuration file %s", config->configfile);
+	debug(LOG_INFO, "读取并验证配置文件【%s】", config->configfile);
 	config_read(config->configfile);
 	config_validate();
 
@@ -376,12 +376,12 @@ int main(int argc, char **argv)
 	client_list_init();
 
 	// Init the signals to catch chld/quit/etc
-	debug(LOG_INFO, "Initializing signal handlers");
+	debug(LOG_INFO, "初始化信号处理程序");
 	init_signals();
 
 	if (config->daemon) {
 
-		debug(LOG_NOTICE, "Starting as daemon, forking to background");
+		debug(LOG_NOTICE, "以守护进程方式启动，正在分叉到后台运行");
 
 		switch(safe_fork()) {
 		case 0: // child

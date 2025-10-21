@@ -56,26 +56,26 @@ static void
 usage(void)
 {
 	printf(
-		"Usage: ndsctl [options] command [arguments]\n"
+		"用法: ndsctl [选项] 命令 [参数]\n"
 		"\n"
-		"options:\n"
-		"  -s <path>           Path to the socket\n"
-		"  -h                  Print usage\n"
+		"选项:\n"
+		"  -s <路径>           套接字路径\n"
+		"  -h                  打印此帮助信息\n"
 		"\n"
-		"commands:\n"
-		"  status              View the status of nodogsplash\n"
-		"  clients             Display machine-readable client list\n"
-		"  json [mac|ip|token] Display client list in json format\n"
-		"  stop                Stop the running nodogsplash\n"
-		"  auth mac|ip|token   Authenticate user with specified mac, ip or token\n"
-		"  deauth mac|ip|token Deauthenticate user with specified mac, ip or token\n"
-		"  block mac           Block the given MAC address\n"
-		"  unblock mac         Unblock the given MAC address\n"
-		"  allow mac           Allow the given MAC address\n"
-		"  unallow mac         Unallow the given MAC address\n"
-		"  trust mac           Trust the given MAC address\n"
-		"  untrust mac         Untrust the given MAC address\n"
-		"  debuglevel n        Set debug level to n\n"
+		"命令:\n"
+		"  status              查看 nodogsplash 状态\n"
+		"  clients             显示机器可读的客户端列表\n"
+		"  json [mac|ip|token] 以 JSON 格式显示客户端列表\n"
+		"  stop                停止正在运行的 nodogsplash\n"
+		"  auth mac|ip|token   认证指定 mac、ip 或 token 的用户\n"
+		"  deauth mac|ip|token 取消认证指定 mac、ip 或 token 的用户\n"
+		"  block mac           阻止指定 MAC 地址\n"
+		"  unblock mac         解除阻止指定 MAC 地址\n"
+		"  allow mac           允许指定 MAC 地址访问\n"
+		"  unallow mac         取消允许指定 MAC 地址访问\n"
+		"  trust mac           信任指定 MAC 地址\n"
+		"  untrust mac         取消信任指定 MAC 地址\n"
+		"  debuglevel n        设置日志详细级别为 n\n"
 		"\n"
 	);
 }
@@ -85,15 +85,15 @@ static struct argument arguments[] = {
 	{"json", NULL, NULL},
 	{"status", NULL, NULL},
 	{"stop", NULL, NULL},
-	{"debuglevel", "Debug level set to %s.\n", "Failed to set debug level to %s.\n"},
-	{"deauth", "Client %s deauthenticated.\n", "Client %s not found.\n"},
-	{"auth", "Client %s authenticated.\n", "Failed to authenticate client %s.\n"},
-	{"block", "MAC %s blocked.\n", "Failed to block MAC %s.\n"},
-	{"unblock", "MAC %s unblocked.\n", "Failed to unblock MAC %s.\n"},
-	{"allow", "MAC %s allowed.\n", "Failed to allow MAC %s.\n"},
-	{"unallow", "MAC %s unallowed.\n", "Failed to unallow MAC %s.\n"},
-	{"trust", "MAC %s trusted.\n", "Failed to trust MAC %s.\n"},
-	{"untrust", "MAC %s untrusted.\n", "Failed to untrust MAC %s.\n"},
+	{"debuglevel", "日志详细级别设置为 %s \n", "设置日志详细级别 %s 失败 \n"},
+	{"deauth", "客户端 %s 已取消认证 \n", "未找到客户端 %s \n"},
+	{"auth", "客户端 %s 已认证 \n", "认证客户端 %s 失败 \n"},
+	{"block", "MAC %s 已阻止 \n", "阻止 MAC %s 失败 \n"},
+	{"unblock", "MAC %s 已解除阻止 \n", "解除阻止 MAC %s 失败 \n"},
+	{"allow", "MAC %s 已允许访问 \n", "允许 MAC %s 失败 \n"},
+	{"unallow", "MAC %s 已取消允许访问 \n", "取消允许 MAC %s 失败 \n"},
+	{"trust", "MAC %s 已被信任 \n", "信任 MAC %s 失败 \n"},
+	{"untrust", "MAC %s 已取消信任 \n", "取消信任 MAC %s 失败 \n"},
 	{NULL, NULL, NULL}
 };
 
@@ -123,7 +123,7 @@ connect_to_server(const char sock_name[])
 	strncpy(sa_un.sun_path, sock_name, (sizeof(sa_un.sun_path) - 1));
 
 	if (connect(sock, (struct sockaddr *)&sa_un, strlen(sa_un.sun_path) + sizeof(sa_un.sun_family))) {
-		fprintf(stderr, "ndsctl: nodogsplash probably not started (Error: %s)\n", strerror(errno));
+		fprintf(stderr, "ndsctl: nodogsplash 程序可能未启动 (错误代码: %s)\n", strerror(errno));
 		return -1;
 	}
 
@@ -139,7 +139,7 @@ send_request(int sock, const char request[])
 	while (len != strlen(request)) {
 		written = write(sock, (request + len), strlen(request) - len);
 		if (written == -1) {
-			fprintf(stderr, "Write to nodogsplash failed: %s\n", strerror(errno));
+			fprintf(stderr, "写入 nodogsplash 失败: %s\n", strerror(errno));
 			exit(1);
 		}
 		len += written;
@@ -184,7 +184,7 @@ ndsctl_do(const char *socket, const struct argument *arg, const char *param)
 		}
 
 		if (rlen < 0) {
-			fprintf(stderr, "ndsctl: Error reading socket: %s\n", strerror(errno));
+			fprintf(stderr, "ndsctl: 读取套接字时出错: %s\n", strerror(errno));
 			ret = 3;
 		} else if (strcmp(buffer, "Yes") == 0) {
 			printf(arg->ifyes, param);
@@ -193,7 +193,7 @@ ndsctl_do(const char *socket, const struct argument *arg, const char *param)
 			printf(arg->ifno, param);
 			ret = 1;
 		} else {
-			fprintf(stderr, "ndsctl: Error: nodogsplash sent an abnormal reply.\n");
+			fprintf(stderr, "ndsctl: 错误：nodogsplash 发送了异常回复\n");
 			ret = 2;
 		}
 	} else {
@@ -248,7 +248,7 @@ main(int argc, char **argv)
 	arg = find_argument(argv[i]);
 
 	if (arg == NULL) {
-		fprintf(stderr, "Unknown command: %s\n", argv[i]);
+		fprintf(stderr, "未知命令:【%s】\n", argv[i]);
 		return 1;
 	}
 

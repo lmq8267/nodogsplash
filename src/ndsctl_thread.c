@@ -86,40 +86,40 @@ thread_ndsctl(void *arg)
 	int number_of_count;
 	int i;
 
-	debug(LOG_DEBUG, "Starting ndsctl.");
+	debug(LOG_DEBUG, "启动 ndsctl ");
 
 	memset(&sa_un, 0, sizeof(sa_un));
 	sock_name = (char *)arg;
-	debug(LOG_DEBUG, "Socket name: %s", sock_name);
+	debug(LOG_DEBUG, "套接字名称:【%s】", sock_name);
 
 	if (strlen(sock_name) > (sizeof(sa_un.sun_path) - 1)) {
 		/* TODO: Die handler with logging.... */
-		debug(LOG_ERR, "NDSCTL socket name too long");
+		debug(LOG_ERR, "NDSCTL 套接字名称太长");
 		exit(1);
 	}
 
-	debug(LOG_DEBUG, "Creating socket");
+	debug(LOG_DEBUG, "创建套接字");
 	sock = socket(PF_UNIX, SOCK_STREAM, 0);
 
-	debug(LOG_DEBUG, "Got server socket %d", sock);
+	debug(LOG_DEBUG, "获得服务器套接字【%d】", sock);
 
 	/* If it exists, delete... Not the cleanest way to deal. */
 	unlink(sock_name);
 
-	debug(LOG_DEBUG, "Filling sockaddr_un");
+	debug(LOG_DEBUG, "正在填充 sockaddr_un");
 	strcpy(sa_un.sun_path, sock_name); /* XXX No size check because we check a few lines before. */
 	sa_un.sun_family = AF_UNIX;
 
-	debug(LOG_DEBUG, "Binding socket (%s) (%d)", sa_un.sun_path, strlen(sock_name));
+	debug(LOG_DEBUG, "绑定套接字 (%s) (%d)", sa_un.sun_path, strlen(sock_name));
 
 	/* Which to use, AF_UNIX, PF_UNIX, AF_LOCAL, PF_LOCAL? */
 	if (bind(sock, (struct sockaddr *)&sa_un, strlen(sock_name) + sizeof(sa_un.sun_family))) {
-		debug(LOG_ERR, "Could not bind control socket: %s", strerror(errno));
+		debug(LOG_ERR, "无法绑定控制套接字: %s", strerror(errno));
 		pthread_exit(NULL);
 	}
 
 	if (listen(sock, 5)) {
-		debug(LOG_ERR, "Could not listen on control socket: %s", strerror(errno));
+		debug(LOG_ERR, "无法监听控制套接字: %s", strerror(errno));
 		pthread_exit(NULL);
 	}
 
@@ -130,7 +130,7 @@ thread_ndsctl(void *arg)
 	ev.data.fd = sock;
 
 	if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, sock, &ev) < 0) {
-		debug(LOG_ERR, "Could not insert socket fd to epoll set: %s", strerror(errno));
+		debug(LOG_ERR, "无法将套接字 fd 插入 epoll 集: %s", strerror(errno));
 		pthread_exit(NULL);
 	}
 
@@ -154,7 +154,7 @@ thread_ndsctl(void *arg)
 			if (errno == EINTR)
 				continue;
 
-			debug(LOG_ERR, "Failed to wait epoll events: %s", strerror(errno));
+			debug(LOG_ERR, "等待 epoll 事件失败: %s", strerror(errno));
 			free(events);
 			pthread_exit(NULL);
 		}
@@ -163,7 +163,7 @@ thread_ndsctl(void *arg)
 
 			if ((events[i].events & EPOLLERR) || (events[i].events & EPOLLHUP) ||
 					(!(events[i].events & EPOLLIN))) {
-				debug(LOG_ERR, "Socket is not ready for communication : %s", strerror(errno));
+				debug(LOG_ERR, "套接字尚未准备好进行通信: %s", strerror(errno));
 
 				if (events[i].data.fd > 0) {
 					shutdown(events[i].data.fd, 2);
@@ -175,7 +175,7 @@ thread_ndsctl(void *arg)
 
 			if (events[i].data.fd == sock) {
 				if ((fd = accept(events[i].data.fd, (struct sockaddr *)&sa_un, &len)) == -1) {
-					debug(LOG_ERR, "Accept failed on control socket: %s", strerror(errno));
+					debug(LOG_ERR, "控制套接字接受失败: %s", strerror(errno));
 					free(events);
 					pthread_exit(NULL);
 				} else {
@@ -184,7 +184,7 @@ thread_ndsctl(void *arg)
 					ev.data.fd = fd;
 
 					if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, fd, &ev) < 0) {
-						debug(LOG_ERR, "Could not insert socket fd to epoll set: %s", strerror(errno));
+						debug(LOG_ERR, "无法将套接字 fd 插入 epoll 集: %s", strerror(errno));
 						free(events);
 						pthread_exit(NULL);
 					}
@@ -220,8 +220,8 @@ ndsctl_handler(int fd)
 	ssize_t read_bytes, len;
 	FILE* fp;
 
-	debug(LOG_DEBUG, "Entering thread_ndsctl_handler....");
-	debug(LOG_DEBUG, "Read bytes and stuff from descriptor %d", fd);
+	debug(LOG_DEBUG, "进入 thread_ndsctl_handler....");
+	debug(LOG_DEBUG, "从描述符中读取字节和内容【%d】", fd);
 
 	/* Init variables */
 	read_bytes = 0;
@@ -245,7 +245,7 @@ ndsctl_handler(int fd)
 		read_bytes += len;
 	}
 
-	debug(LOG_DEBUG, "ndsctl request received: [%s]", request);
+	debug(LOG_DEBUG, "已收到 ndsctl 请求:【%s】", request);
 
 	if (strncmp(request, "status", 6) == 0) {
 		ndsctl_status(fp);
@@ -277,11 +277,11 @@ ndsctl_handler(int fd)
 	}
 
 	if (!done) {
-		debug(LOG_ERR, "Invalid ndsctl request.");
+		debug(LOG_ERR, "ndsctl 请求无效");
 	}
 
-	debug(LOG_DEBUG, "ndsctl request processed: [%s]", request);
-	debug(LOG_DEBUG, "Exiting thread_ndsctl_handler....");
+	debug(LOG_DEBUG, "ndsctl 请求已处理:【%s】", request);
+	debug(LOG_DEBUG, "退出 thread_ndsctl_handler....");
 
 	/* Close and flush fp, also closes underlying fd */
 	fclose(fp);
@@ -295,7 +295,7 @@ ndsctl_auth(FILE *fp, char *arg)
 	unsigned id;
 	int rc;
 
-	debug(LOG_DEBUG, "Entering ndsctl_auth [%s]", arg);
+	debug(LOG_DEBUG, "进入 ndsctl_auth【%s】", arg);
 
 	LOCK_CLIENT_LIST();
 	client = client_list_find_by_any(arg, arg, arg);
@@ -304,7 +304,7 @@ ndsctl_auth(FILE *fp, char *arg)
 	if (id) {
 		rc = auth_client_auth_nolock(id, "ndsctl_auth");
 	} else {
-		debug(LOG_DEBUG, "Client not found.");
+		debug(LOG_DEBUG, "未找到客户端");
 		rc = -1;
 	}
 	UNLOCK_CLIENT_LIST();
@@ -316,7 +316,7 @@ ndsctl_auth(FILE *fp, char *arg)
 		fprintf(fp, "No");
 	}
 
-	debug(LOG_DEBUG, "Exiting ndsctl_auth...");
+	debug(LOG_DEBUG, "退出 ndsctl_auth...");
 }
 
 static void
@@ -326,7 +326,7 @@ ndsctl_deauth(FILE *fp, char *arg)
 	unsigned id;
 	int rc;
 
-	debug(LOG_DEBUG, "Entering ndsctl_deauth [%s]", arg);
+	debug(LOG_DEBUG, "进入 ndsctl_deauth【%s】", arg);
 
 	LOCK_CLIENT_LIST();
 	client = client_list_find_by_any(arg, arg, arg);
@@ -336,7 +336,7 @@ ndsctl_deauth(FILE *fp, char *arg)
 	if (id) {
 		rc = auth_client_deauth(id, "ndsctl_deauth");
 	} else {
-		debug(LOG_DEBUG, "Client not found.");
+		debug(LOG_DEBUG, "未找到客户端");
 		rc = -1;
 	}
 
@@ -346,7 +346,7 @@ ndsctl_deauth(FILE *fp, char *arg)
 		fprintf(fp, "No");
 	}
 
-	debug(LOG_DEBUG, "Exiting ndsctl_deauth...");
+	debug(LOG_DEBUG, "退出 ndsctl_deauth...");
 }
 
 static void
@@ -354,7 +354,7 @@ ndsctl_block(FILE *fp, char *arg)
 {
 	int rc;
 
-	debug(LOG_DEBUG, "Entering ndsctl_block [%s]", arg);
+	debug(LOG_DEBUG, "进入 ndsctl_block【%s】", arg);
 
 	rc = auth_client_block(arg);
 	if (rc == 0) {
@@ -363,7 +363,7 @@ ndsctl_block(FILE *fp, char *arg)
 		fprintf(fp, "No");
 	}
 
-	debug(LOG_DEBUG, "Exiting ndsctl_block.");
+	debug(LOG_DEBUG, "退出 ndsctl_block.");
 }
 
 static void
@@ -371,7 +371,7 @@ ndsctl_unblock(FILE *fp, char *arg)
 {
 	int rc;
 
-	debug(LOG_DEBUG, "Entering ndsctl_unblock [%s]", arg);
+	debug(LOG_DEBUG, "进入 ndsctl_unblock【%s】", arg);
 
 	rc = auth_client_unblock(arg);
 	if (rc == 0) {
@@ -380,7 +380,7 @@ ndsctl_unblock(FILE *fp, char *arg)
 		fprintf(fp, "No");
 	}
 
-	debug(LOG_DEBUG, "Exiting ndsctl_unblock.");
+	debug(LOG_DEBUG, "退出 ndsctl_unblock.");
 }
 
 static void
@@ -388,7 +388,7 @@ ndsctl_allow(FILE *fp, char *arg)
 {
 	int rc;
 
-	debug(LOG_DEBUG, "Entering ndsctl_allow [%s]", arg);
+	debug(LOG_DEBUG, "进入 ndsctl_allow【%s】", arg);
 
 	rc = auth_client_allow(arg);
 	if (rc == 0) {
@@ -397,7 +397,7 @@ ndsctl_allow(FILE *fp, char *arg)
 		fprintf(fp, "No");
 	}
 
-	debug(LOG_DEBUG, "Exiting ndsctl_allow.");
+	debug(LOG_DEBUG, "退出 ndsctl_allow.");
 }
 
 static void
@@ -405,7 +405,7 @@ ndsctl_unallow(FILE *fp, char *arg)
 {
 	int rc;
 
-	debug(LOG_DEBUG, "Entering ndsctl_unallow [%s]", arg);
+	debug(LOG_DEBUG, "进入 ndsctl_unallow【%s】", arg);
 
 	rc = auth_client_unallow(arg);
 	if (rc == 0) {
@@ -414,7 +414,7 @@ ndsctl_unallow(FILE *fp, char *arg)
 		fprintf(fp, "No");
 	}
 
-	debug(LOG_DEBUG, "Exiting ndsctl_unallow.");
+	debug(LOG_DEBUG, "退出 ndsctl_unallow.");
 }
 
 static void
@@ -422,7 +422,7 @@ ndsctl_trust(FILE *fp, char *arg)
 {
 	int rc;
 
-	debug(LOG_DEBUG, "Entering ndsctl_trust [%s]", arg);
+	debug(LOG_DEBUG, "进入 ndsctl_trust【%s】", arg);
 
 	rc = auth_client_trust(arg);
 	if (rc == 0) {
@@ -431,7 +431,7 @@ ndsctl_trust(FILE *fp, char *arg)
 		fprintf(fp, "No");
 	}
 
-	debug(LOG_DEBUG, "Exiting ndsctl_trust.");
+	debug(LOG_DEBUG, "退出 ndsctl_trust.");
 }
 
 static void
@@ -439,7 +439,7 @@ ndsctl_untrust(FILE *fp, char *arg)
 {
 	int rc;
 
-	debug(LOG_DEBUG, "Entering ndsctl_untrust [%s]", arg);
+	debug(LOG_DEBUG, "进入 ndsctl_untrust【%s】", arg);
 
 	rc = auth_client_untrust(arg);
 	if (rc == 0) {
@@ -448,26 +448,26 @@ ndsctl_untrust(FILE *fp, char *arg)
 		fprintf(fp, "No");
 	}
 
-	debug(LOG_DEBUG, "Exiting ndsctl_untrust.");
+	debug(LOG_DEBUG, "退出 ndsctl_untrust.");
 }
 
 static void
 ndsctl_debuglevel(FILE *fp, char *arg)
 {
-	debug(LOG_DEBUG, "Entering ndsctl_debuglevel [%s]", arg);
+	debug(LOG_DEBUG, "进入 ndsctl_debuglevel【%s】", arg);
 
 	LOCK_CONFIG();
 
 	if (!set_debuglevel(arg)) {
 		fprintf(fp, "Yes");
-		debug(LOG_NOTICE, "Set debug debuglevel to %s.", arg);
+		debug(LOG_NOTICE, "设置日志详细级别为:【%s】", arg);
 	} else {
 		fprintf(fp, "No");
 	}
 
 	UNLOCK_CONFIG();
 
-	debug(LOG_DEBUG, "Exiting ndsctl_debuglevel.");
+	debug(LOG_DEBUG, "退出 ndsctl_debuglevel.");
 }
 
 static int

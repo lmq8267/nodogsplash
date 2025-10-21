@@ -105,7 +105,7 @@ _iptables_init_marks()
 	if (FW_MARK_BLOCKED == FW_MARK_TRUSTED ||
 			FW_MARK_TRUSTED == FW_MARK_AUTHENTICATED ||
 			FW_MARK_AUTHENTICATED == FW_MARK_BLOCKED) {
-		debug(LOG_ERR, "FW_MARK_BLOCKED, FW_MARK_TRUSTED, FW_MARK_AUTHENTICATED not distinct values.");
+		debug(LOG_ERR, "FW_MARK_BLOCKED, FW_MARK_TRUSTED, FW_MARK_AUTHENTICATED 不是不同的值！");
 		return -1;
 	}
 
@@ -113,7 +113,7 @@ _iptables_init_marks()
 	if (FW_MARK_BLOCKED == 0 ||
 			FW_MARK_TRUSTED == 0 ||
 			FW_MARK_AUTHENTICATED == 0) {
-		debug(LOG_ERR, "FW_MARK_BLOCKED, FW_MARK_TRUSTED, FW_MARK_AUTHENTICATED not all nonzero.");
+		debug(LOG_ERR, "FW_MARK_BLOCKED, FW_MARK_TRUSTED, FW_MARK_AUTHENTICATED 不是全部非零！");
 		return -1;
 	}
 
@@ -121,16 +121,16 @@ _iptables_init_marks()
 	/* FW_MARK_MASK is bitwise OR of other marks */
 	FW_MARK_MASK = FW_MARK_BLOCKED | FW_MARK_TRUSTED | FW_MARK_AUTHENTICATED;
 
-	debug(LOG_INFO,"Iptables mark %s: 0x%x",
+	debug(LOG_INFO,"Iptables 标记 %s: 0x%x",
 		fw_connection_state_as_string(FW_MARK_PREAUTHENTICATED),
 		FW_MARK_PREAUTHENTICATED);
-	debug(LOG_INFO,"Iptables mark %s: 0x%x",
+	debug(LOG_INFO,"Iptables 标记 %s: 0x%x",
 		fw_connection_state_as_string(FW_MARK_AUTHENTICATED),
 		FW_MARK_AUTHENTICATED);
-	debug(LOG_INFO,"Iptables mark %s: 0x%x",
+	debug(LOG_INFO,"Iptables 标记 %s: 0x%x",
 		fw_connection_state_as_string(FW_MARK_TRUSTED),
 		FW_MARK_TRUSTED);
-	debug(LOG_INFO,"Iptables mark %s: 0x%x",
+	debug(LOG_INFO,"Iptables 标记 %s: 0x%x",
 		fw_connection_state_as_string(FW_MARK_BLOCKED),
 		FW_MARK_BLOCKED);
 
@@ -145,26 +145,26 @@ _iptables_check_mark_masking()
 	fw_quiet = 1; /* do it quietly */
 	if (0 == iptables_do_command("-t mangle -I PREROUTING 1 -j MARK --or-mark 0x%x", FW_MARK_BLOCKED)) {
 		iptables_do_command("-t mangle -D PREROUTING 1"); /* delete test rule we just inserted */
-		debug(LOG_DEBUG, "Kernel supports --or-mark.");
+		debug(LOG_DEBUG, "内核支持 --or-mark.");
 		markop = "--or-mark";
 	} else {
-		debug(LOG_INFO,"Kernel does not support iptables --or-mark. Using --set-mark instead.");
+		debug(LOG_INFO,"内核不支持 iptables --or-mark ，使用 --set-mark 代替");
 		markop = "--set-mark";
 	}
 
 	/* See if kernel supports mark masking */
 	if (0 == iptables_do_command("-t filter -I FORWARD 1 -m mark --mark 0x%x/0x%x -j REJECT", FW_MARK_BLOCKED, FW_MARK_MASK)) {
 		iptables_do_command("-t filter -D FORWARD 1"); /* delete test rule we just inserted */
-		debug(LOG_DEBUG, "Kernel supports mark masking.");
+		debug(LOG_DEBUG, "内核支持标记屏蔽");
 		char *tmp = NULL;
 		safe_asprintf(&tmp,"/0x%x",FW_MARK_MASK);
 		markmask = tmp;
 	} else {
-		debug(LOG_INFO, "Kernel does not support iptables mark masking. Using empty mask.");
+		debug(LOG_INFO, "内核不支持 iptables 标记掩码，使用空掩码");
 		markmask = "";
 	}
 
-	debug(LOG_INFO, "Iptables mark op \"%s\" and mark mask \"%s\".", markop, markmask);
+	debug(LOG_INFO, "Iptables 标记操作 【%s】并标记掩码 【%s】", markop, markmask);
 
 	fw_quiet = 0; /* restore verbosity */
 
@@ -290,16 +290,16 @@ _iptables_append_ruleset(const char table[], const char ruleset[], const char ch
 	char *cmd;
 	int ret = 0;
 
-	debug(LOG_DEBUG, "Loading ruleset %s into table %s, chain %s", ruleset, table, chain);
+	debug(LOG_DEBUG, "将规则集【%s】加载到【%s】表和【%s】链中", ruleset, table, chain);
 
 	for (rule = get_ruleset_list(ruleset); rule != NULL; rule = rule->next) {
 		cmd = _iptables_compile(table, chain, rule);
-		debug(LOG_DEBUG, "Loading rule \"%s\" into table %s, chain %s", cmd, table, chain);
+		debug(LOG_DEBUG, "将规则集【%s】加载到【%s】表和【%s】链中", cmd, table, chain);
 		ret |= iptables_do_command(cmd);
 		free(cmd);
 	}
 
-	debug(LOG_DEBUG, "Ruleset %s loaded into table %s, chain %s", ruleset, table, chain);
+	debug(LOG_DEBUG, "规则集【%s】已加载到【%s】表和【%s】链", ruleset, table, chain);
 	return ret;
 }
 
@@ -376,7 +376,7 @@ iptables_fw_init(void)
 	int rc = 0;
 	int macmechanism;
 
-	debug(LOG_NOTICE, "Initializing firewall rules");
+	debug(LOG_NOTICE, "初始化防火墙规则");
 
 	LOCK_CONFIG();
 	config = config_get_config();
@@ -410,12 +410,12 @@ iptables_fw_init(void)
 
 	iptables_version = get_iptables_version();
 	if (iptables_version < 0) {
-		debug(LOG_ERR, "Cannot get iptables version.");
+		debug(LOG_ERR, "无法获取 iptables 版本！");
 		return -1;
 	}
 
 	if (iptables_version < MIN_IPTABLES_VERSION) {
-		debug(LOG_ERR, "Unsupported iptables version v%d.%d.%d, needs at least v%d.%d.%d.",
+		debug(LOG_ERR, "不支持的 iptables 版本【v%d.%d.%d】, 至少需要【v%d.%d.%d】",
 			(iptables_version / 10000),
 			(iptables_version % 10000) / 100,
 			(iptables_version % 100),
@@ -474,7 +474,7 @@ iptables_fw_init(void)
 			rc |= iptables_allow_mac(pa->mac);
 		}
 	} else {
-		debug(LOG_ERR, "Unknown MAC mechanism: %d", macmechanism);
+		debug(LOG_ERR, "未知的MAC机制:【%d】", macmechanism);
 		rc = -1;
 	}
 
@@ -512,6 +512,7 @@ iptables_fw_init(void)
 		// CHAIN_OUTGOING, append the "preauthenticated-users" ruleset
 		rc |= _iptables_append_ruleset("nat", "preauthenticated-users", CHAIN_OUTGOING);
 
+		//rc |= iptables_do_command("-t nat -A " CHAIN_OUTGOING " -d %s -p tcp --dport 80 -j RETURN", gw_ip);
 		// CHAIN_OUTGOING, packets for tcp port 80, redirect to gw_port on primary address for the iface
 		rc |= iptables_do_command("-t nat -A " CHAIN_OUTGOING " -p tcp --dport 80 -j DNAT --to-destination %s", gw_address);
 		// CHAIN_OUTGOING, other packets ACCEPT
@@ -697,14 +698,14 @@ iptables_fw_destroy(void)
 	UNLOCK_CONFIG();
 
 	if (traffic_control) {
-		debug(LOG_DEBUG, "Destroying our tc hooks");
+		debug(LOG_DEBUG, "清除Nds的 tc 流量控制hooks");
 		tc_destroy_tc();
 	}
 
-	debug(LOG_DEBUG, "Destroying our iptables entries");
+	debug(LOG_DEBUG, "清除Nds的 iptables 条目");
 
 	/* Everything in the mangle table */
-	debug(LOG_DEBUG, "Destroying chains in the MANGLE table");
+	debug(LOG_DEBUG, "清除 MANGLE 表中的链");
 	iptables_fw_destroy_mention("mangle", "PREROUTING", CHAIN_TRUSTED);
 	iptables_fw_destroy_mention("mangle", "PREROUTING", CHAIN_BLOCKED);
 	iptables_fw_destroy_mention("mangle", "PREROUTING", CHAIN_ALLOWED);
@@ -723,7 +724,7 @@ iptables_fw_destroy(void)
 
 	/* Everything in the nat table (ip4 only) */
 	if (!config->ip6) {
-		debug(LOG_DEBUG, "Destroying chains in the NAT table");
+		debug(LOG_DEBUG, "清除 NAT 表中的链");
 		iptables_fw_destroy_mention("nat", "PREROUTING", CHAIN_OUTGOING);
 		iptables_do_command("-t nat -F " CHAIN_OUTGOING);
 		iptables_do_command("-t nat -X " CHAIN_OUTGOING);
@@ -731,7 +732,7 @@ iptables_fw_destroy(void)
 
 	/* Everything in the filter table */
 
-	debug(LOG_DEBUG, "Destroying chains in the FILTER table");
+	debug(LOG_DEBUG, "清除 FILTER 表中的链");
 	iptables_fw_destroy_mention("filter", "INPUT", CHAIN_TO_ROUTER);
 	iptables_fw_destroy_mention("filter", "FORWARD", CHAIN_TO_INTERNET);
 	iptables_do_command("-t filter -F " CHAIN_TO_ROUTER);
@@ -772,7 +773,7 @@ iptables_fw_destroy_mention(
 	char rulenum[10];
 	int retval = -1;
 
-	debug(LOG_DEBUG, "Checking all mention of %s in chain %s of table %s", mention, chain, table);
+	debug(LOG_DEBUG, "检查【%s】表中、【%s】链中所有提到【%s】的条目", table, chain, mention);
 
 	config = config_get_config();
 	iptables = config->ip6 ? "ip6tables" : "iptables";
@@ -789,7 +790,7 @@ iptables_fw_destroy_mention(
 				/* Found mention - Get the rule number into rulenum*/
 				if (sscanf(line, "%9[0-9]", rulenum) == 1) {
 					/* Delete the rule: */
-					debug(LOG_DEBUG, "Deleting rule %s from %s.%s because it mentions %s", rulenum, table, chain, mention);
+					debug(LOG_DEBUG, "因规则【%s】中提到【%s】，正在从【%s.%s】中删除该规则", rulenum, mention, table, chain);
 					safe_asprintf(&command2, "-t %s -D %s %s", table, chain, rulenum);
 					iptables_do_command(command2);
 					free(command2);
@@ -835,9 +836,11 @@ iptables_fw_authenticate(t_client *client)
 		upload_limit = client->upload_limit;
 	}
 
-	debug(LOG_NOTICE, "Authenticating %s %s", client->ip, client->mac);
+	debug(LOG_NOTICE, "正在认证用户【%s】【%s】", client->ip, client->mac);
 	/* This rule is for marking upload (outgoing) packets, and for upload byte counting */
 	rc |= iptables_do_command("-t mangle -A " CHAIN_OUTGOING " -s %s -m mac --mac-source %s -j MARK %s 0x%x", client->ip, client->mac, markop, FW_MARK_AUTHENTICATED);
+	// 在 NAT 表中也添加 RETURN 规则,避免 DNAT  
+	rc |= iptables_do_command("-t nat -I " CHAIN_OUTGOING " -s %s -m mac --mac-source %s -p tcp --dport 80 -j RETURN", client->ip, client->mac);
 	rc |= iptables_do_command("-t mangle -A " CHAIN_INCOMING " -d %s -j MARK %s 0x%x", client->ip, markop, FW_MARK_AUTHENTICATED);
 	/* This rule is just for download (incoming) byte counting, see iptables_fw_counters_update() */
 	rc |= iptables_do_command("-t mangle -A " CHAIN_INCOMING " -d %s -j ACCEPT", client->ip);
@@ -872,10 +875,11 @@ iptables_fw_deauthenticate(t_client *client)
 	}
 
 	/* Remove the authentication rules. */
-	debug(LOG_NOTICE, "Deauthenticating %s %s", client->ip, client->mac);
+	debug(LOG_NOTICE, "正在取消认证用户【%s】【%s】", client->ip, client->mac);
 	rc |= iptables_do_command("-t mangle -D " CHAIN_OUTGOING " -s %s -m mac --mac-source %s -j MARK %s 0x%x", client->ip, client->mac, markop, FW_MARK_AUTHENTICATED);
 	rc |= iptables_do_command("-t mangle -D " CHAIN_INCOMING " -d %s -j MARK %s 0x%x", client->ip, markop, FW_MARK_AUTHENTICATED);
 	rc |= iptables_do_command("-t mangle -D " CHAIN_INCOMING " -d %s -j ACCEPT", client->ip);
+	rc |= iptables_do_command("-t nat -D " CHAIN_OUTGOING " -s %s -m mac --mac-source %s -p tcp --dport 80 -j RETURN", client->ip, client->mac);
 
 	if (traffic_control) {
 		rc |= tc_detach_client(config->gw_interface, download_limit, upload_ifbname, upload_limit, client->id);
@@ -898,7 +902,7 @@ iptables_fw_total_upload()
 	script = "iptables -v -n -x -t mangle -L PREROUTING";
 	output = popen(script, "r");
 	if (!output) {
-		debug(LOG_ERR, "popen(): %s", strerror(errno));
+		debug(LOG_ERR, "popen():【%s】", strerror(errno));
 		return 0;
 	}
 
@@ -909,7 +913,7 @@ iptables_fw_total_upload()
 	while (!feof(output)) {
 		rc = fscanf(output, "%*d %llu %s ", &counter, target);
 		if (2 == rc && !strcmp(target,CHAIN_OUTGOING)) {
-			debug(LOG_DEBUG, "Total outgoing Bytes=%llu", counter);
+			debug(LOG_DEBUG, "总发送字节数=%llu", counter);
 			pclose(output);
 			return counter;
 		}
@@ -918,7 +922,7 @@ iptables_fw_total_upload()
 	}
 
 	pclose(output);
-	debug(LOG_WARNING, "Can't find target %s in mangle table", CHAIN_OUTGOING);
+	debug(LOG_WARNING, "在 mangle 表中找不到目标【%s】", CHAIN_OUTGOING);
 	return 0;
 }
 
@@ -947,7 +951,7 @@ iptables_fw_total_download()
 	while (!feof(output)) {
 		rc = fscanf(output, "%*s %llu %s ", &counter, target);
 		if (2 == rc && !strcmp(target, CHAIN_INCOMING)) {
-			debug(LOG_DEBUG, "Total incoming Bytes=%llu", counter);
+			debug(LOG_DEBUG, "总接收字节数=%llu", counter);
 			pclose(output);
 			return counter;
 		}
@@ -956,7 +960,7 @@ iptables_fw_total_download()
 	}
 
 	pclose(output);
-	debug(LOG_WARNING, "Can't find target %s in mangle table", CHAIN_INCOMING);
+	debug(LOG_WARNING, "在 mangle 表中找不到目标【%s】", CHAIN_INCOMING);
 	return 0;
 }
 
@@ -985,7 +989,7 @@ iptables_fw_counters_update(void)
 	output = popen(script, "r");
 	free(script);
 	if (!output) {
-		debug(LOG_ERR, "popen(): %s", strerror(errno));
+		debug(LOG_ERR, "popen():【%s】", strerror(errno));
 		UNLOCK_CLIENT_LIST();
 		return -1;
 	}
@@ -1001,18 +1005,18 @@ iptables_fw_counters_update(void)
 		if (3 == rc && !strcmp(target, "MARK")) {
 			/* Sanity*/
 			if (!inet_pton(af, ip, &tempaddr)) {
-				debug(LOG_WARNING, "I was supposed to read an IP address but instead got [%s] - ignoring it", ip);
+				debug(LOG_WARNING, "本应读取一个 IP 地址，但得到的是【%s】 - 已忽略", ip);
 				continue;
 			}
-			debug(LOG_DEBUG, "Read outgoing traffic for %s: Bytes=%llu", ip, counter);
+			debug(LOG_DEBUG, "读取【%s】的出站流量：字节数=%llu", ip, counter);
 			if ((p1 = client_list_find_by_ip(ip))) {
 				if (p1->counters.outgoing < counter) {
 					p1->counters.outgoing = counter;
 					p1->counters.last_updated = time(NULL);
-					debug(LOG_DEBUG, "%s - Updated counter.outgoing to %llu bytes.  Updated last_updated to %d", ip, counter, p1->counters.last_updated);
+					debug(LOG_DEBUG, "【%s】- 已更新出站计数器到 %llu 字节。已更新最后更新时间为 %d", ip, counter, p1->counters.last_updated);
 				}
 			} else {
-				debug(LOG_WARNING, "Could not find %s in client list", ip);
+				debug(LOG_WARNING, "在客户端列表中找不到【%s】", ip);
 			}
 		}
 	}
@@ -1023,7 +1027,7 @@ iptables_fw_counters_update(void)
 	output = popen(script, "r");
 	free(script);
 	if (!output) {
-		debug(LOG_ERR, "popen(): %s", strerror(errno));
+		debug(LOG_ERR, "popen():【%s】", strerror(errno));
 		UNLOCK_CLIENT_LIST();
 		return -1;
 	}
@@ -1039,17 +1043,17 @@ iptables_fw_counters_update(void)
 		if (3 == rc && !strcmp(target, "ACCEPT")) {
 			/* Sanity*/
 			if (!inet_pton(af, ip, &tempaddr)) {
-				debug(LOG_WARNING, "I was supposed to read an IP address but instead got [%s] - ignoring it", ip);
+				debug(LOG_WARNING, "本应读取一个 IP 地址，但得到的是【%s】- 已忽略", ip);
 				continue;
 			}
-			debug(LOG_DEBUG, "Read incoming traffic for %s: Bytes=%llu", ip, counter);
+			debug(LOG_DEBUG, "读取【%s】的入站流量：字节数=%llu", ip, counter);
 			if ((p1 = client_list_find_by_ip(ip))) {
 				if (p1->counters.incoming < counter) {
 					p1->counters.incoming = counter;
-					debug(LOG_DEBUG, "%s - Updated counter.incoming to %llu bytes", ip, counter);
+					debug(LOG_DEBUG, "【%s】- 已更新 counter.incoming 为 %llu 字节", ip, counter);
 				}
 			} else {
-				debug(LOG_WARNING, "Could not find %s in client list", ip);
+				debug(LOG_WARNING, "在客户端列表中找不到【%s】", ip);
 			}
 		}
 	}

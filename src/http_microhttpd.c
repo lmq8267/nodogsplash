@@ -92,7 +92,7 @@ static int do_binauth(struct MHD_Connection *connection, const char *binauth, t_
 
 	if ((username && uh_urlencode(username_enc, sizeof(username_enc), username, strlen(username)) == -1)
 		|| (password && uh_urlencode(password_enc, sizeof(password_enc), password, strlen(password)) == -1)) {
-		debug(LOG_ERR, "Failed to encode username and password for binauth");
+		debug(LOG_ERR, "无法对 binauth 的用户名和密码进行编码");
 		return -1;
 	}
 
@@ -319,11 +319,11 @@ libmicrohttpd_cb(void *cls,
 	/* path sanitaze */
 	buffer_path_simplify(url, _url);
 
-	debug(LOG_DEBUG, "access: %s %s", method, url);
+	debug(LOG_DEBUG, "访问请求：方法=【%s】URL=【%s】", method, url);
 
 	/* only allow get */
 	if (0 != strcmp(method, "GET")) {
-		debug(LOG_DEBUG, "Unsupported http method %s", method);
+		debug(LOG_DEBUG, "不支持的 HTTP 方法:【 %s】", method);
 		return send_error(connection, 503);
 	}
 
@@ -403,7 +403,7 @@ static int try_to_authenticate(struct MHD_Connection *connection, t_client *clie
 	/* Check for authdir */
 	if (check_authdir_match(url, config->authdir)) {
 		tok = MHD_lookup_connection_value(connection, MHD_GET_ARGUMENT_KIND, "tok");
-		debug(LOG_DEBUG, "client->token=%s tok=%s ", client->token, tok );
+		debug(LOG_DEBUG, "客户端 token=【%s】传入 token=【%s】", client->token, tok );
 
 		if (tok && !strcmp(client->token, tok)) {
 			/* Token is valid */
@@ -411,7 +411,7 @@ static int try_to_authenticate(struct MHD_Connection *connection, t_client *clie
 		}
 	}
 
-	debug(LOG_WARNING, "Token is invalid" );
+	debug(LOG_WARNING, "Token 无效" );
 
 /*	//TODO: do we need denydir?
 	if (check_authdir_match(url, config->denydir)) {
@@ -461,7 +461,7 @@ static int authenticate_client(struct MHD_Connection *connection,
 		return send_error(connection, 503);
 	}
 
-	debug(LOG_NOTICE, "Client [%s, %s] authenticated", client->mac, client->ip);
+	debug(LOG_NOTICE, "客户端【%s %s】已认证成功", client->mac, client->ip);
 
 	/* set client values */
 	client->download_limit = download;
@@ -544,14 +544,14 @@ static int preauthenticated(struct MHD_Connection *connection,
 
 	s_config *config = config_get_config();
 
-	debug(LOG_DEBUG, "url: %s", url);
+	debug(LOG_DEBUG, "URL 地址:【%s】", url);
 
 	MHD_get_connection_values(connection, MHD_HEADER_KIND, get_host_value_callback, &host);
 
-	debug(LOG_DEBUG, "Preauthenticated - Requested Host is [ %s ]", host);
-	debug(LOG_DEBUG, "Preauthenticated - Requested url is [ %s ]", url);
-	debug(LOG_DEBUG, "Preauthenticated - Gateway Address is [ %s ]", config->gw_address);
-	debug(LOG_DEBUG, "Preauthenticated - Gateway Port is [ %u ]", config->gw_port);
+	debug(LOG_DEBUG, "未认证用户 - 请求的主机是【%s】", host);
+	debug(LOG_DEBUG, "未认证用户 - 请求的 URL 是【%s】", url);
+	debug(LOG_DEBUG, "未认证用户 - 网关地址是【%s】", config->gw_address);
+	debug(LOG_DEBUG, "未认证用户 - 网关端口是【%u】", config->gw_port);
 
 	/* check if this is a redirect query with a foreign host as target */
 	if (is_foreign_hosts(host)) {
@@ -565,7 +565,7 @@ static int preauthenticated(struct MHD_Connection *connection,
 		 * When the client reloads a page when it's authenticated, it should be redirected
 		 * to their origin url
 		 */
-		debug(LOG_DEBUG, "authdir url detected: %s", url);
+		debug(LOG_DEBUG, "检测到认证目录 URL:【%s】", url);
 
 		if (config->redirectURL) {
 			redirect_url = config->redirectURL;
@@ -607,18 +607,18 @@ static int encode_and_redirect_to_splashpage(struct MHD_Connection *connection, 
 
 	if (originurl) {
 		if (uh_urlencode(encoded, sizeof(encoded), originurl, strlen(originurl)) == -1) {
-			debug(LOG_WARNING, "cannot encode url");
+			debug(LOG_WARNING, "无法编码 URL");
 			/* not enough memory */
 			return send_error(connection, 503);
 		} else {
-			debug(LOG_DEBUG, "originurl: %s", originurl);
+			debug(LOG_DEBUG, "原始 URL 地址：【%s】", originurl);
 		}
 	}
 
 	safe_asprintf(&splashpageurl, "http://%s/%s?redir=%s",
 			config->gw_http_name, config->splashpage, encoded);
 
-	debug(LOG_DEBUG, "splashpageurl: %s", splashpageurl);
+	debug(LOG_DEBUG, "欢迎页 URL 地址:【%s】", splashpageurl);
 
 	ret = send_redirect_temp(connection, splashpageurl);
 	free(splashpageurl);
@@ -649,12 +649,12 @@ static int redirect_to_splashpage(struct MHD_Connection *connection, t_client *c
 
 	// collect query
 	if (MHD_get_connection_values(connection, MHD_GET_ARGUMENT_KIND, get_query_callback, &data) < 0 || data.error) {
-		debug(LOG_DEBUG, "Unable to get query string - error 503");
+		debug(LOG_DEBUG, "无法获取查询字符串 - 错误 503");
 		/* not enough memory */
 		return send_error(connection, 503);
 	}
 
-	debug(LOG_DEBUG, "Query string is [ %s ]", query);
+	debug(LOG_DEBUG, "查询字符串是【%s】", query);
 
 	safe_asprintf(&querystr, "?clientip=%s&gatewayname=%s", client->ip, config->gw_name);
 	safe_asprintf(&originurl, "http://%s%s%s", host, url, query);
@@ -690,7 +690,7 @@ int send_redirect_temp(struct MHD_Connection *connection, const char *url)
 	int ret;
 	char *redirect = NULL;
 
-	const char *redirect_body = "<html><head></head><body><a href='%s'>Click here to continue to<br>%s</a></body></html>";
+	const char *redirect_body = "<html><head></head><body><a href='%s'>点此继续访问<br>%s</a></body></html>";
 	safe_asprintf(&redirect, redirect_body, url, url);
 
 	response = MHD_create_response_from_buffer(strlen(redirect), redirect, MHD_RESPMEM_MUST_FREE);
@@ -741,13 +741,13 @@ static enum MHD_Result send_error(struct MHD_Connection *connection, int error)
 	struct MHD_Response *response = NULL;
 	// cannot automate since cannot translate automagically between error number and MHD's status codes
 	// -- and cannot rely on MHD_HTTP_ values to provide an upper bound for an array
-	const char *page_200 = "<html><header><title>Authenticated</title><body><h1>Authenticated</h1></body></html>";
-	const char *page_400 = "<html><head><title>Error 400</title></head><body><h1>Error 400 - Bad Request</h1></body></html>";
-	const char *page_403 = "<html><head><title>Error 403</title></head><body><h1>Error 403 - Forbidden</h1></body></html>";
-	const char *page_404 = "<html><head><title>Error 404</title></head><body><h1>Error 404 - Not Found</h1></body></html>";
-	const char *page_500 = "<html><head><title>Error 500</title></head><body><h1>Error 500 - Internal Server Error. Oh no!</body></html>";
-	const char *page_501 = "<html><head><title>Error 501</title></head><body><h1>Error 501 - Not Implemented</h1></body></html>";
-	const char *page_503 = "<html><head><title>Error 503</title></head><body><h1>Error 503 - Internal Server Error</h1></body></html>";
+	const char *page_200 = "<html><header><title>已认证</title><body><h1>已认证</h1></body></html>";
+	const char *page_400 = "<html><head><title>Error 400</title></head><body><h1>Error 400 - 错误请求！</h1></body></html>";
+	const char *page_403 = "<html><head><title>Error 403</title></head><body><h1>Error 403 - 禁止访问！</h1></body></html>";
+	const char *page_404 = "<html><head><title>Error 404</title></head><body><h1>Error 404 - 未找到！</h1></body></html>";
+	const char *page_500 = "<html><head><title>Error 500</title></head><body><h1>Error 500 - 内部服务器错误！</body></html>";
+	const char *page_501 = "<html><head><title>Error 501</title></head><body><h1>Error 501 - 未实现！</h1></body></html>";
+	const char *page_503 = "<html><head><title>Error 503</title></head><body><h1>Error 503 - 服务不可用！</h1></body></html>";
 
 	const char *mimetype = lookup_mimetype("foo.html");
 
@@ -1018,7 +1018,7 @@ const char *lookup_mimetype(const char *filename)
 		}
 	}
 
-	debug(LOG_INFO, "Could not find corresponding mimetype for %s extension", extension);
+	debug(LOG_INFO, "无法找到扩展名【%s】对应的 MIME 类型", extension);
 
 	return DEFAULT_MIME_TYPE;
 }

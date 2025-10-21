@@ -1,71 +1,246 @@
-name: Continuous Deployment
+name: 编译nodogsplash
 
 on:
-  push:
-    branches:
-      - master
-      - main
-      - ci
-    tags:
-      - v*
-  pull_request:
   workflow_dispatch:
-
+    inputs:
+      branch:
+        description: '需要编译的分支或版本号，默认主分支main'
+        required: true
+        default: 'main'
+      del:
+        description: '是否删除历史编译的流程记录'
+        required: true
+        default: true
+        type: boolean
+      rel:
+        description: '编译完成后是否发布Release'
+        required: true
+        default: true
+        type: boolean
+      tag:
+        description: '指定Release的版本号（留空为源码提交哈希值）'
+        required: false
+        default: ''
+      upx:
+        description: '是否使用upx压缩linux的二进制'
+        required: true
+        default: true
+        type: boolean
+        
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+  
+env:
+  tag: "${{ github.event.inputs.tag }}"
+  rel: "${{ github.event.inputs.rel }}"
+  branch: "${{ github.event.inputs.branch }}"
+  TZ: Asia/Shanghai
+  
+permissions:
+  contents: write
+  actions: write 
+  
 jobs:
   build:
-    name: Build Debian Packages
+    name: Build ${{ matrix.target }}
     strategy:
+      fail-fast: false
       matrix:
-        architecture: ['amd64', 'arm64']
-        version: ['22.04', '24.04']
-    runs-on:
-      ubuntu-${{ matrix.version }}${{ matrix.architecture == 'amd64' && '' ||
-      '-arm' }}
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v2
+        include:
 
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libmicrohttpd-dev build-essential debhelper dh-make fakeroot devscripts libjson-c-dev
+        - target: aarch64-unknown-linux
+          URL: aarch64-linux-musl
+        
+        - target: armv7l-linux-eabihf
+          URL: armv7l-linux-musleabihf
 
-      - name: Build
-        run: |
-          make
-          make tests
-          dpkg-buildpackage -us -uc -b
-          mv ../*.deb ./nodogsplash_ubuntu-${{ matrix.version }}_${{ matrix.architecture }}.deb
+        - target: armv7m-linux-eabi
+          URL: armv7m-linux-musleabi
+          
+        - target: arm-linux-eabihf
+          URL: arm-linux-musleabihf
 
-      - name: Upload
-        uses: actions/upload-artifact@v4
-        with:
-          name: debian-package-${{ matrix.architecture }}-${{ matrix.version }}
-          path: '*.deb'
+        - target: arm-linux-eabi
+          URL: arm-linux-musleabi
 
-  release:
-    name: Release
+        - target: mipsel-linux
+          URL: mipsel-linux-muslsf
+
+        - target: mips-linux
+          URL: mips-linux-muslsf
+
+        - target: mips64-linux
+          URL: mips64-linux-musl
+          
+        - target: x86_64-linux
+          URL: x86_64-linux-musl
+
+        - target: i686-linux
+          URL: i686-linux-musl
+          
     runs-on: ubuntu-latest
-    needs: build
-    if: github.event_name == 'push' && github.ref_type == 'tag'
+    env:
+         TARGET: ${{ matrix.target }}
+         URL: ${{ matrix.URL }}
     steps:
-      - name: Download Packages
-        uses: actions/download-artifact@v4
-        with:
-          pattern: debian-package-*
-          merge-multiple: true
+     - name: Checkout code
+       uses: actions/checkout@v4
+       with:
+        repository: ${{ github.repository }}
+        ref: ${{ env.branch }}
+        
+     - name: 下载linux-musl-gcc
+       uses: lmq8267/dl-musl@main
+       with:
+        target: ${{ matrix.URL }}
+        static: true
+        gccpath: /opt/musl_gcc
 
-      - name: Extract version from tag name
-        id: extract
-        run: |
-          echo "VERSION=$(echo ${{ github.ref }} | sed 's/v//')" >> $GITHUB_ENV
-        shell: bash
+     - name: 设置环境变量
+       run: |
+         CFLAGS="-ffunction-sections -fdata-sections -O2 -w $CFLAGS -I/opt/microhttpd-${URL}/include -I/opt/json-c-${URL}/include"
+           
+         LDFLAGS="-s -Wl,--gc-sections $LDFLAGS -L/opt/microhttpd-${URL}/lib -L/opt/json-c-${URL}/lib"
+           
+         echo "CFLAGS=$CFLAGS" >> $GITHUB_ENV
+         echo "CXXFLAGS=$CFLAGS" >> $GITHUB_ENV
+         echo "CPPFLAGS=$CFLAGS" >> $GITHUB_ENV
+         echo "LDFLAGS=$LDFLAGS" >> $GITHUB_ENV
 
-      - name: Create release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: |
-            *.deb
-          tag_name: ${{ steps.extract.outputs.VERSION }}
+     - name: 缓存 microhttpd 库
+       id: cache-microhttpd
+       uses: actions/cache@v4
+       with:
+        path: |
+          /opt/microhttpd-${{ matrix.URL }}
+        key: microhttpd-${{ matrix.URL }}-cache
+     - name: 编译 microhttpd 库
+       env:
+         TARGET: ${{ matrix.target }}
+         URL: ${{ matrix.URL }}
+       run: |
+         if [ ! -d "/opt/microhttpd-${URL}" ] || [ -z "$(find /opt/microhttpd-${URL}/lib -name '*.a' 2>/dev/null)" ] ; then
+            wget https://ftp.gnu.org/gnu/libmicrohttpd/libmicrohttpd-0.9.71.tar.gz
+            tar xf libmicrohttpd-0.9.71.tar.gz
+            cd libmicrohttpd-0.9.71
+            echo "###########################编译microhttpd依赖库########################"
+            # 针对 ARM 交叉编译添加 -D_FILE_OFFSET_BITS=64
+            if [[ "$TARGET" == "arm-linux-eabi" || "$TARGET" == "arm-linux-eabihf" ]]; then
+              export CFLAGS="$CFLAGS -D_FILE_OFFSET_BITS=64"
+              # 在 configure 前
+              sed -i 's/OFF64_T_MAX/OFF_T_MAX/g' src/microhttpd/mhd_send.c
+            fi
+            ./configure \
+              --host=${{ matrix.target }} \
+              --disable-shared \
+              --enable-static \
+              --without-openssl \
+              --without-gnutls \
+              --disable-spdy \
+              --disable-https \
+              --prefix=/opt/microhttpd-${URL}
+            make -j$(nproc)
+            make install
+         else
+          echo "✅ microhttpd 静态库已缓存，跳过编译"
+         fi
+     - name: 缓存 json-c 库
+       id: cache-jsonc
+       uses: actions/cache@v4
+       with:
+        path: /opt/json-c-${{ matrix.URL }}
+        key: jsonc-${{ matrix.URL }}-cache
+
+     - name: 编译 json-c 库
+       env:
+        TARGET: ${{ matrix.target }}
+        URL: ${{ matrix.URL }}
+       run: |
+        if [ ! -d "/opt/json-c-${URL}" ] || [ -z "$(find /opt/json-c-${URL}/lib -name '*.a' 2>/dev/null)" ]; then
+          echo "########################### 编译 json-c 静态库 ########################"
+          git clone https://github.com/json-c/json-c.git
+          cd json-c
+          git checkout json-c-0.17-20230812
+          mkdir build && cd build
+          cmake .. \
+            -DCMAKE_SYSTEM_NAME=Linux \
+            -DCMAKE_C_COMPILER=${URL}-gcc \
+            -DCMAKE_INSTALL_PREFIX=/opt/json-c-${URL} \
+            -DBUILD_SHARED_LIBS=OFF \
+            -DCMAKE_BUILD_TYPE=Release
+          make -j$(nproc)
+          make install
+        else
+          echo "✅ json-c 静态库已缓存，跳过编译"
+        fi
+     - name: 编译 nodogsplash
+       env:
+        TAG: ${{ env.tag }}
+        TARGET: ${{ matrix.target }}
+       run: |
+         export CROSS_COMPILE=${URL}-
+         make nodogsplash
+         make ndsctl
+         ls
+         $STRIP nodogsplash ndsctl
+         file nodogsplash 
+         mkdir -p /opt/out/htdocs
+         mv -f ./nodogsplash /opt/out/nodogsplash 
+         mv -f ./ndsctl /opt/out/ndsctl
+         cp ./resources/nodogsplash.conf /opt/out/
+         cp ./resources/login.html /opt/out/htdocs/
+         cp resources/myauth.sh /opt/out/
+         cp resources/status.html /opt/out/htdocs/
+         cp resources/splash.jpg /opt/out/htdocs/
+         if [ -z "$TAG" ]; then
+              echo "tag=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+         fi
+         echo "haxi=$(git rev-parse HEAD)" >> $GITHUB_ENV
+         cd /opt/out
+         zip -r ../nodogsplash-$TARGET.zip ./*
+         echo "build_time=$(date '+%Y年%m月%d日%H:%M:%S' | jq -sRr @uri)" >> $GITHUB_ENV
+         
+       #continue-on-error: true  
+       
+     - name: 安装 UPX
+       if: ${{ matrix.target != 'mips64-linux' && github.event.inputs.upx == 'true' }}
+       uses: crazy-max/ghaction-upx@v3
+       with:
+        version: v4.2.4
+        install-only: true
+     - name: 压缩打包
+       if: ${{ matrix.target != 'mips64-linux' && github.event.inputs.upx == 'true' }}
+       run: upx --lzma --best /opt/out/* || true
+        
+     - uses: actions/upload-artifact@v4
+       with:
+        name: nodogsplash-${{ matrix.target }}
+        path: /opt/out/*
+     - name: 发布Release
+       if: github.event.inputs.rel == 'true'
+       uses: softprops/action-gh-release@v2
+       with:
+          token: ${{ secrets.GITHUB_TOKEN }}
           body: |
-            Release ${{ steps.extract.outputs.VERSION }}
+           > ### ![](https://img.shields.io/badge/%E7%BC%96%E8%AF%91%E6%97%B6%E9%97%B4-${{ env.build_time }}-nodogsplash?logo=github&labelColor=%E9%A1%BB)![](https://img.shields.io/github/downloads/${{ github.repository }}/${{env.tag}}/total?label=%E4%B8%8B%E8%BD%BD%E6%AC%A1%E6%95%B0&logo=github)
+           
+           [提交记录](https://github.com/${{ github.repository }}/tree/${{ env.haxi }})
+           
+           [官方源码](https://github.com/nodogsplash/nodogsplash)
+           
+          tag_name: ${{env.tag}}
+          overwrite_files: true
+          files: /opt/nodogsplash-${{ matrix.target }}.zip
+
+  del:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 删除流程记录
+        if: github.event.inputs.del == 'true'
+        uses: Mattraks/delete-workflow-runs@main
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          retain_days: 0
+          keep_minimum_runs: 0
+        

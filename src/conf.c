@@ -186,7 +186,7 @@ config_init(void)
 {
 	t_firewall_ruleset *rs;
 
-	debug(LOG_DEBUG, "Setting default config parameters");
+	debug(LOG_DEBUG, "设置默认配置参数");
 	strncpy(config.configfile, DEFAULT_CONFIGFILE, sizeof(config.configfile)-1);
 	config.session_timeout = DEFAULT_SESSION_TIMEOUT;
 	config.session_timeout_block = DEFAULT_SESSION_TIMEOUT_BLOCK;
@@ -271,7 +271,7 @@ config_parse_opcode(const char *cp, const char *filename, int linenum)
 		}
 	}
 
-	debug(LOG_ERR, "%s: line %d: Bad configuration option: %s", filename, linenum, cp);
+	debug(LOG_ERR, "在 %s 中的第 %d 行出现了错误的配置选项：【 %s】", filename, linenum, cp);
 	return oBadOption;
 }
 
@@ -308,11 +308,11 @@ add_ruleset(const char rulesetname[])
 	ruleset = get_ruleset(rulesetname);
 
 	if (ruleset != NULL) {
-		debug(LOG_DEBUG, "add_ruleset(): FirewallRuleSet %s already exists.", rulesetname);
+		debug(LOG_DEBUG, "add_ruleset(): 防火墙规则集【%s】已存在！", rulesetname);
 		return ruleset;
 	}
 
-	debug(LOG_DEBUG, "add_ruleset(): Creating FirewallRuleSet %s.", rulesetname);
+	debug(LOG_DEBUG, "add_ruleset(): 正在创建防火墙规则集【%s】", rulesetname);
 
 	/* Create and place at head of config.rulesets */
 	ruleset = safe_malloc(sizeof(t_firewall_ruleset));
@@ -340,11 +340,11 @@ parse_empty_ruleset_policy(char *ptr, const char *filename, int lineno)
 	*ptr = '\0';
 
 	/* get the ruleset struct with this name; error if it doesn't exist */
-	debug(LOG_DEBUG, "Parsing EmptyRuleSetPolicy for %s", rulesetname);
+	debug(LOG_DEBUG, "正在解析 EmptyRuleSetPolicy 中的【%s】", rulesetname);
 	ruleset = get_ruleset(rulesetname);
 	if (ruleset == NULL) {
-		debug(LOG_ERR, "Unrecognized FirewallRuleSet name: %s at line %d in %s", rulesetname, lineno, filename);
-		debug(LOG_ERR, "Exiting...");
+		debug(LOG_ERR, "在 %s 中的第 %d 行出现无法识别的 FirewallRuleSet 名称：【%s】", filename, lineno, rulesetname);
+		debug(LOG_ERR, "退出...");
 		exit(1);
 	}
 
@@ -368,12 +368,12 @@ parse_empty_ruleset_policy(char *ptr, const char *filename, int lineno)
 	} else if (!strcasecmp(policy,"block")) {
 		ruleset->emptyrulesetpolicy =  safe_strdup("REJECT");
 	} else {
-		debug(LOG_ERR, "Unknown EmptyRuleSetPolicy directive: %s at line %d in %s", policy, lineno, filename);
-		debug(LOG_ERR, "Exiting...");
+		debug(LOG_ERR, "在 %s 中的第 %d 行出现无法识别的 EmptyRuleSetPolicy 指令：【%s】", filename, lineno, policy);
+		debug(LOG_ERR, "退出...");
 		exit(1);
 	}
 
-	debug(LOG_DEBUG, "Set EmptyRuleSetPolicy for %s to %s", rulesetname, policy);
+	debug(LOG_DEBUG, "将【%s】的 EmptyRuleSetPolicy 设置为【%s】", rulesetname, policy);
 }
 
 
@@ -394,11 +394,11 @@ parse_firewall_ruleset(const char *rulesetname, FILE *fd, const char *filename, 
 	p1 = strchr(rulesetname,'\t');
 	if (p1) *p1 = '\0';
 
-	debug(LOG_DEBUG, "Parsing FirewallRuleSet %s", rulesetname);
+	debug(LOG_DEBUG, "解析防火墙规则集【%s】", rulesetname);
 	ruleset = get_ruleset(rulesetname);
 	if (ruleset == NULL) {
-		debug(LOG_ERR, "Unrecognized FirewallRuleSet name: %s", rulesetname);
-		debug(LOG_ERR, "Exiting...");
+		debug(LOG_ERR, "无法识别的防火墙规则集名称：【%s】", rulesetname);
+		debug(LOG_ERR, "退出...");
 		exit(1);
 	}
 
@@ -420,8 +420,8 @@ parse_firewall_ruleset(const char *rulesetname, FILE *fd, const char *filename, 
 		while ((*p2 != '\0') && (!isblank(*p2))) p2++;
 		/* if this is end of line, it's a problem */
 		if (p2[0] == '\0') {
-			debug(LOG_ERR, "FirewallRule incomplete on line %d in %s", *linenum, filename);
-			debug(LOG_ERR, "Exiting...");
+			debug(LOG_ERR, "在 %s 中的第 %d 行出现防火墙规则不完整", filename, *linenum);
+			debug(LOG_ERR, "退出...");
 			exit(1);
 		}
 		/* terminate first word, point past it */
@@ -443,13 +443,13 @@ parse_firewall_ruleset(const char *rulesetname, FILE *fd, const char *filename, 
 
 		case oBadOption:
 		default:
-			debug(LOG_ERR, "Bad option %s parsing FirewallRuleSet on line %d in %s", p1, *linenum, filename);
-			debug(LOG_ERR, "Exiting...");
+			debug(LOG_ERR, "在 %s 中的第 %d 行解析 FirewallRuleSet 时出现错误选项【%s】", filename, *linenum, p1);
+			debug(LOG_ERR, "退出...");
 			exit(1);
 			break;
 		}
 	}
-	debug(LOG_DEBUG, "FirewallRuleSet %s parsed.", rulesetname);
+	debug(LOG_DEBUG, "FirewallRuleSet【%s】已解析", rulesetname);
 }
 
 /** @internal
@@ -491,8 +491,8 @@ _parse_firewall_rule(t_firewall_ruleset *ruleset, char *leftover)
 	} else if (!strcasecmp(token, "ulog")) {
 		target = TARGET_ULOG;
 	} else {
-		debug(LOG_ERR, "Invalid rule type %s, expecting "
-			  "\"block\",\"drop\",\"allow\",\"log\" or \"ulog\"", token);
+		debug(LOG_ERR, "无效的规则类型【%s】，应该是 "
+			  "\"block\",\"drop\",\"allow\",\"log\" 或 \"ulog\"", token);
 		exit(1);
 	}
 
@@ -511,7 +511,7 @@ _parse_firewall_rule(t_firewall_ruleset *ruleset, char *leftover)
 	if (strncmp(leftover, "port", 4) == 0) {
 		if (protocol == NULL ||
 				!(strncmp(protocol, "tcp", 3) == 0 || strncmp(protocol, "udp", 3) == 0)) {
-			debug(LOG_ERR, "Port without tcp or udp protocol");
+			debug(LOG_ERR, "不含 tcp 或 udp 协议的端口");
 			exit(1);
 		}
 		TO_NEXT_WORD(leftover, finished);
@@ -522,7 +522,7 @@ _parse_firewall_rule(t_firewall_ruleset *ruleset, char *leftover)
 			if (!isdigit((unsigned char)*(port + i)) && ((unsigned char)*(port + i) != ':'))
 				all_nums = 0; /*< No longer only digits or : */
 		if (!all_nums) {
-			debug(LOG_ERR, "Invalid port %s", port);
+			debug(LOG_ERR, "无效端口：【 %s】", port);
 			exit(1);
 		}
 	}
@@ -542,8 +542,8 @@ _parse_firewall_rule(t_firewall_ruleset *ruleset, char *leftover)
 		other_kw = leftover;
 		TO_NEXT_WORD(leftover, finished);
 		if (strcmp(other_kw, "to") || finished) {
-			debug(LOG_ERR, "Invalid or unexpected keyword %s, "
-				  "expecting \"to\"", other_kw);
+			debug(LOG_ERR, "无效或意外的关键字【%s】，"
+				  "应该是 \"to\"", other_kw);
 			exit(1);
 		}
 
@@ -556,7 +556,7 @@ _parse_firewall_rule(t_firewall_ruleset *ruleset, char *leftover)
 					&& (*(mask + i) != '/'))
 				all_nums = 0; /*< No longer only digits or . or / */
 		if (!all_nums) {
-			debug(LOG_ERR, "Invalid mask %s", mask);
+			debug(LOG_ERR, "无效掩码【%s】", mask);
 			exit(1);
 		}
 	}
@@ -576,7 +576,7 @@ _parse_firewall_rule(t_firewall_ruleset *ruleset, char *leftover)
 	else
 		tmp->mask = safe_strdup(mask);
 
-	debug(LOG_DEBUG, "Adding FirewallRule %s %s port %s to %s to FirewallRuleset %s", token, tmp->protocol, tmp->port, tmp->mask, ruleset->name);
+	debug(LOG_DEBUG, "将 FirewallRule【%s】【%s】端口【%s】添加到 FirewallRuleset【%s】的【%s】", token, tmp->protocol, tmp->port, tmp->mask, ruleset->name);
 
 	/* Add the rule record */
 	if (ruleset->rules == NULL) {
@@ -666,11 +666,11 @@ config_read(const char *filename)
 	int linenum = 0, opcode, value;
 	struct stat sb;
 
-	debug(LOG_INFO, "Reading configuration file '%s'", filename);
+	debug(LOG_INFO, "正在读取配置文件 '%s'", filename);
 
 	if (!(fd = fopen(filename, "r"))) {
-		debug(LOG_ERR, "FATAL: Could not open configuration file '%s', "
-			  "exiting...", filename);
+		debug(LOG_ERR, "致命错误：无法打开配置文件 '%s', "
+			  "退出...", filename);
 		exit(1);
 	}
 
@@ -690,8 +690,8 @@ config_read(const char *filename)
 		while ((*p1 != '\0') && (!isspace(*p1))) p1++;
 		/* if this is end of line, it's a problem */
 		if (p1[0] == '\0') {
-			debug(LOG_ERR, "Option %s requires argument on line %d in %s", s, linenum, filename);
-			debug(LOG_ERR, "Exiting...");
+			debug(LOG_ERR, "在 %s 中的第 %d 行需要【%s】参数", filename, linenum, s);
+			debug(LOG_ERR, "退出...");
 			exit(1);
 		}
 
@@ -702,28 +702,28 @@ config_read(const char *filename)
 		/* skip any additional leading whitespace, make p1 point at start of arg */
 		while (isblank(*p1)) p1++;
 
-		debug(LOG_DEBUG, "Parsing option: %s, arg: %s", s, p1);
+		debug(LOG_DEBUG, "解析选项：【%s】，参数：【%s】", s, p1);
 		opcode = config_parse_opcode(s, filename, linenum);
 
 		switch(opcode) {
 		case oSessionTimeout:
 			if (sscanf(p1, "%d", &config.session_timeout) < 1 || config.session_timeout < 0) {
-				debug(LOG_ERR, "Bad arg %s to option %s on line %d in %s", p1, s, linenum, filename);
-				debug(LOG_ERR, "Exiting...");
+				debug(LOG_ERR, "在 %s 中的第 %d 行选项 %s 的参数【%s】出现错误", filename, linenum, s, p1);
+				debug(LOG_ERR, "退出...");
 				exit(1);
 			}
 			break;
 		case oSessionTimeoutBlock:
 			if (sscanf(p1, "%u", &config.session_timeout_block) < 1) {
-				debug(LOG_ERR, "Bad arg %s to option %s on line %d in %s", p1, s, linenum, filename);
-				debug(LOG_ERR, "Exiting...");
+				debug(LOG_ERR, "在 %s 中的第 %d 行选项 %s 的参数【%s】出现错误", filename, linenum, s, p1);
+				debug(LOG_ERR, "退出...");
 				exit(-1);
 			}
 			break;
 		case oSessionLimitBlock:
 			if (sscanf(p1, "%u", &config.session_limit_block) < 0) {
-				debug(LOG_ERR, "Bad arg %s to option %s on line %d in %s", p1, s, linenum, filename);
-				debug(LOG_ERR, "Exiting...");
+				debug(LOG_ERR, "在 %s 中的第 %d 行选项 %s 的参数【%s】出现错误", filename, linenum, s, p1);
+				debug(LOG_ERR, "退出...");
 				exit(-1);
 			}
 			break;
@@ -734,19 +734,19 @@ config_read(const char *filename)
 			break;
 		case oDebugLevel:
 			if (sscanf(p1, "%d", &config.debuglevel) < 1 || config.debuglevel < DEBUGLEVEL_MIN) {
-				debug(LOG_ERR, "Bad arg %s to option %s on line %d in %s. Valid levels are %d...%d.",
-					p1, s, linenum, filename, DEBUGLEVEL_MIN, DEBUGLEVEL_MAX);
-				debug(LOG_ERR, "Exiting...");
+				debug(LOG_ERR, "在 %s 中的第 %d 行选项 %s 的参数【%s】出现错误。有效的级别范围是【%d】到【%d】",
+					filename, linenum, s, p1, DEBUGLEVEL_MIN, DEBUGLEVEL_MAX);
+				debug(LOG_ERR, "退出...");
 				exit(1);
 			} else if (config.debuglevel > DEBUGLEVEL_MAX) {
 				config.debuglevel = DEBUGLEVEL_MAX;
-				debug(LOG_WARNING, "Invalid debug level. Set to maximum.");
+				debug(LOG_WARNING, "日志详细级别无效。请设置为最高级别");
 			}
 			break;
 		case oMaxClients:
 			if (sscanf(p1, "%d", &config.maxclients) < 1 || config.maxclients < 1) {
-				debug(LOG_ERR, "Bad arg %s to option %s on line %d in %s", p1, s, linenum, filename);
-				debug(LOG_ERR, "Exiting...");
+				debug(LOG_ERR, "在 %s 中的第 %d 行选项 %s 的参数【%s】出现错误", filename, linenum, s, p1);
+				debug(LOG_ERR, "退出...");
 				exit(1);
 			}
 			break;
@@ -769,24 +769,24 @@ config_read(const char *filename)
 			break;
 		case oGatewayPort:
 			if (sscanf(p1, "%u", &config.gw_port) < 1) {
-				debug(LOG_ERR, "Bad arg %s to option %s on line %d in %s", p1, s, linenum, filename);
-				debug(LOG_ERR, "Exiting...");
+				debug(LOG_ERR, "在 %s 中的第 %d 行选项 %s 的参数【%s】出现错误", filename, linenum, s, p1);
+				debug(LOG_ERR, "退出...");
 				exit(1);
 			}
 			break;
 		case oBinAuth:
 			config.binauth = safe_strdup(p1);
 			if (!((stat(p1, &sb) == 0) && S_ISREG(sb.st_mode) && (sb.st_mode & S_IXUSR))) {
-				debug(LOG_ERR, "binauth program does not exist or is not executeable: %s", p1);
-				debug(LOG_ERR, "Exiting...");
+				debug(LOG_ERR, "binauth 脚本文件不存在或没有可执行权限：【%s】", p1);
+				debug(LOG_ERR, "退出...");
 				exit(1);
 			}
 			break;
 		case oPreAuth:
 			config.preauth = safe_strdup(p1);
 			if (!((stat(p1, &sb) == 0) && S_ISREG(sb.st_mode) && (sb.st_mode & S_IXUSR))) {
-				debug(LOG_ERR, "preauth program does not exist or is not executeable: %s", p1);
-				debug(LOG_ERR, "Exiting...");
+				debug(LOG_ERR, "preauth program 脚本文件不存在或没有可执行权限：【%s】", p1);
+				debug(LOG_ERR, "退出...");
 				exit(1);
 			}
 			break;
@@ -811,8 +811,8 @@ config_read(const char *filename)
 			} else if (!strcasecmp("block", p1)) {
 				config.macmechanism = MAC_BLOCK;
 			} else {
-				debug(LOG_ERR, "Bad arg %s to option %s on line %d in %s", p1, s, linenum, filename);
-				debug(LOG_ERR, "Exiting...");
+				debug(LOG_ERR, "在 %s 中的第 %d 行选项 %s 的参数【%s】出现错误", filename, linenum, s, p1);
+				debug(LOG_ERR, "退出...");
 				exit(1);
 			}
 			break;
@@ -832,15 +832,15 @@ config_read(const char *filename)
 			break;
 		case oAuthIdleTimeout:
 			if (sscanf(p1, "%d", &config.auth_idle_timeout) < 1 || config.auth_idle_timeout < 0) {
-				debug(LOG_ERR, "Bad arg %s to option %s on line %d in %s", p1, s, linenum, filename);
-				debug(LOG_ERR, "Exiting...");
+				debug(LOG_ERR, "在 %s 中的第 %d 行选项 %s 的参数【%s】出现错误", filename, linenum, s, p1);
+				debug(LOG_ERR, "退出...");
 				exit(1);
 			}
 			break;
 		case oPreauthIdleTimeout:
 			if (sscanf(p1, "%d", &config.preauth_idle_timeout) < 1 || config.preauth_idle_timeout < 0) {
-				debug(LOG_ERR, "Bad arg %s to option %s on line %d in %s", p1, s, linenum, filename);
-				debug(LOG_ERR, "Exiting...");
+				debug(LOG_ERR, "在 %s 中的第 %d 行选项 %s 的参数【%s】出现错误", filename, linenum, s, p1);
+				debug(LOG_ERR, "退出...");
 				exit(1);
 			}
 			break;
@@ -852,15 +852,15 @@ config_read(const char *filename)
 			if ((value = parse_boolean(p1)) != -1) {
 				config.set_mss = value;
 			} else {
-				debug(LOG_ERR, "Bad arg %s to option %s on line %d in %s", p1, s, linenum, filename);
-				debug(LOG_ERR, "Exiting...");
+				debug(LOG_ERR, "在 %s 中的第 %d 行选项 %s 的参数【%s】出现错误", filename, linenum, s, p1);
+				debug(LOG_ERR, "退出...");
 				exit(1);
 			}
 			break;
 		case oMSSValue:
 			if (sscanf(p1, "%d", &config.mss_value) < 1) {
-				debug(LOG_ERR, "Bad arg %s to option %s on line %d in %s", p1, s, linenum, filename);
-				debug(LOG_ERR, "Exiting...");
+				debug(LOG_ERR, "在 %s 中的第 %d 行选项 %s 的参数【%s】出现错误", filename, linenum, s, p1);
+				debug(LOG_ERR, "退出...");
 				exit(1);
 			}
 			break;
@@ -868,29 +868,29 @@ config_read(const char *filename)
 			if ((value = parse_boolean(p1)) != -1) {
 				config.traffic_control = value;
 			} else {
-				debug(LOG_ERR, "Bad arg %s to option %s on line %d in %s", p1, s, linenum, filename);
-				debug(LOG_ERR, "Exiting...");
+				debug(LOG_ERR, "在 %s 中的第 %d 行选项 %s 的参数【%s】出现错误", filename, linenum, s, p1);
+				debug(LOG_ERR, "退出...");
 				exit(1);
 			}
 			break;
 		case oDownloadLimit:
 			if (sscanf(p1, "%d", &config.download_limit) < 1 || config.download_limit < 0) {
-				debug(LOG_ERR, "Bad arg %s to option %s on line %d in %s", p1, s, linenum, filename);
-				debug(LOG_ERR, "Exiting...");
+				debug(LOG_ERR, "在 %s 中的第 %d 行选项 %s 的参数【%s】出现错误", filename, linenum, s, p1);
+				debug(LOG_ERR, "退出...");
 				exit(1);
 			}
 			break;
 		case oUploadLimit:
 			if (sscanf(p1, "%d", &config.upload_limit) < 1 || config.upload_limit < 0) {
-				debug(LOG_ERR, "Bad arg %s to option %s on line %d in %s", p1, s, linenum, filename);
-				debug(LOG_ERR, "Exiting...");
+				debug(LOG_ERR, "在 %s 中的第 %d 行选项 %s 的参数【%s】出现错误", filename, linenum, s, p1);
+				debug(LOG_ERR, "退出...");
 				exit(1);
 			}
 			break;
 		case oUploadIFB:
 			if(sscanf(p1, "%d", &config.upload_ifb) < 1 || config.upload_ifb < 0) {
-				debug(LOG_ERR, "Bad arg %s to option %s on line %d in %s", p1, s, linenum, filename);
-				debug(LOG_ERR, "Exiting...");
+				debug(LOG_ERR, "在 %s 中的第 %d 行选项 %s 的参数【%s】出现错误", filename, linenum, s, p1);
+				debug(LOG_ERR, "退出...");
 				exit(1);
 			}
 			break;
@@ -899,8 +899,8 @@ config_read(const char *filename)
 					config.fw_mark_authenticated == 0 ||
 					config.fw_mark_authenticated == config.fw_mark_blocked ||
 					config.fw_mark_authenticated == config.fw_mark_trusted) {
-				debug(LOG_ERR, "Bad arg %s to option %s on line %d in %s", p1, s, linenum, filename);
-				debug(LOG_ERR, "Exiting...");
+				debug(LOG_ERR, "在 %s 中的第 %d 行选项 %s 的参数【%s】出现错误", filename, linenum, s, p1);
+				debug(LOG_ERR, "退出...");
 				exit(1);
 			}
 			break;
@@ -909,8 +909,8 @@ config_read(const char *filename)
 					config.fw_mark_blocked == 0 ||
 					config.fw_mark_blocked == config.fw_mark_authenticated ||
 					config.fw_mark_blocked == config.fw_mark_trusted) {
-				debug(LOG_ERR, "Bad arg %s to option %s on line %d in %s", p1, s, linenum, filename);
-				debug(LOG_ERR, "Exiting...");
+				debug(LOG_ERR, "在 %s 中的第 %d 行选项 %s 的参数【%s】出现错误", filename, linenum, s, p1);
+				debug(LOG_ERR, "退出...");
 				exit(1);
 			}
 			break;
@@ -919,28 +919,28 @@ config_read(const char *filename)
 					config.fw_mark_trusted == 0 ||
 					config.fw_mark_trusted == config.fw_mark_authenticated ||
 					config.fw_mark_trusted == config.fw_mark_blocked) {
-				debug(LOG_ERR, "Bad arg %s to option %s on line %d in %s", p1, s, linenum, filename);
-				debug(LOG_ERR, "Exiting...");
+				debug(LOG_ERR, "在 %s 中的第 %d 行选项 %s 的参数【%s】出现错误", filename, linenum, s, p1);
+				debug(LOG_ERR, "退出...");
 				exit(1);
 			}
 			break;
 		case oCheckInterval:
 			if (sscanf(p1, "%i", &config.checkinterval) < 1 || config.checkinterval < 1) {
-				debug(LOG_ERR, "Bad arg %s to option %s on line %d in %s", p1, s, linenum, filename);
-				debug(LOG_ERR, "Exiting...");
+				debug(LOG_ERR, "在 %s 中的第 %d 行选项 %s 的参数【%s】出现错误", filename, linenum, s, p1);
+				debug(LOG_ERR, "退出...");
 				exit(1);
 			}
 			break;
 		case oSyslogFacility:
 			if (sscanf(p1, "%d", &config.syslog_facility) < 1) {
-				debug(LOG_ERR, "Bad arg %s to option %s on line %d in %s", p1, s, linenum, filename);
-				debug(LOG_ERR, "Exiting...");
+				debug(LOG_ERR, "在 %s 中的第 %d 行选项 %s 的参数【%s】出现错误", filename, linenum, s, p1);
+				debug(LOG_ERR, "退出...");
 				exit(1);
 			}
 			break;
 		case oBadOption:
-			debug(LOG_ERR, "Bad option %s on line %d in %s", s, linenum, filename);
-			debug(LOG_ERR, "Exiting...");
+			debug(LOG_ERR, "在 %s 中的第 %d 行选项【%s】出现错误。", filename, linenum, s);
+			debug(LOG_ERR, "退出...");
 			exit(1);
 			break;
 		case oStateFile:
@@ -949,7 +949,7 @@ config_read(const char *filename)
 
 			config.statefile = safe_strdup(p1);
 #ifndef WITH_STATE_FILE
-			debug(LOG_ERR, "nodogsplash built without statefile, but statefile given.");
+			debug(LOG_ERR, "nodogsplash 构建时没有状态文件，但给出了状态文件。");
 #endif /* WITH_STATE_FILE */
 			break;
 		}
@@ -957,7 +957,7 @@ config_read(const char *filename)
 
 	fclose(fd);
 
-	debug(LOG_INFO, "Done reading configuration file '%s'", filename);
+	debug(LOG_INFO, "读取配置文件【%s】完成 ", filename);
 }
 
 /** @internal
@@ -1000,8 +1000,8 @@ int add_to_trusted_mac_list(const char possiblemac[])
 
 	/* check for valid format */
 	if (!check_mac_format(possiblemac)) {
-		debug(LOG_WARNING, "[%s] is not a valid MAC address", possiblemac);
-		debug(LOG_WARNING, "[%s]  - please remove from trustedmac list in config file", possiblemac);
+		debug(LOG_WARNING, "【%s】不是有效的MAC地址", possiblemac);
+		debug(LOG_WARNING, "请从配置文件中的 trustedmac 列表中删除这个MAC地址【%s】", possiblemac);
 		return 1;
 	}
 
@@ -1010,7 +1010,7 @@ int add_to_trusted_mac_list(const char possiblemac[])
 	/* See if MAC is already on the list; don't add duplicates */
 	for (p = config.trustedmaclist; p != NULL; p = p->next) {
 		if (!strcasecmp(p->mac, mac)) {
-			debug(LOG_INFO, "MAC address [%s] already on trusted list", mac);
+			debug(LOG_INFO, "MAC地址【%s】已在信任列表中", mac);
 			return 1;
 		}
 	}
@@ -1020,7 +1020,7 @@ int add_to_trusted_mac_list(const char possiblemac[])
 	p->mac = safe_strdup(mac);
 	p->next = config.trustedmaclist;
 	config.trustedmaclist = p;
-	debug(LOG_INFO, "Added MAC address [%s] to trusted list", mac);
+	debug(LOG_INFO, "将MAC地址【%s】添加到信任列表", mac);
 	return 0;
 }
 
@@ -1036,7 +1036,7 @@ int remove_from_trusted_mac_list(const char possiblemac[])
 
 	/* check for valid format */
 	if (!check_mac_format(possiblemac)) {
-		debug(LOG_NOTICE, "[%s] not a valid MAC address", possiblemac);
+		debug(LOG_NOTICE, "【%s】不是有效的MAC地址", possiblemac);
 		return -1;
 	}
 
@@ -1044,7 +1044,7 @@ int remove_from_trusted_mac_list(const char possiblemac[])
 
 	/* If empty list, nothing to do */
 	if (config.trustedmaclist == NULL) {
-		debug(LOG_INFO, "MAC address [%s] not on empty trusted list", mac);
+		debug(LOG_INFO, "MAC地址【%s】不在空的信任列表中", mac);
 		return -1;
 	}
 
@@ -1054,14 +1054,14 @@ int remove_from_trusted_mac_list(const char possiblemac[])
 			/* found it */
 			del = *p;
 			*p = del->next;
-			debug(LOG_INFO, "Removed MAC address [%s] from trusted list", mac);
+			debug(LOG_INFO, "从信任列表中删除了MAC地址【%s】", mac);
 			free(del);
 			return 0;
 		}
 	}
 
 	/* MAC was not on list */
-	debug(LOG_INFO, "MAC address [%s] not on  trusted list", mac);
+	debug(LOG_INFO, "MAC地址【%s】不在可信列表中", mac);
 	return -1;
 }
 
@@ -1074,7 +1074,7 @@ void parse_trusted_mac_list(const char ptr[])
 	char *ptrcopy = NULL, *ptrcopyptr;
 	char *possiblemac = NULL;
 
-	debug(LOG_DEBUG, "Parsing string [%s] for trusted MAC addresses", ptr);
+	debug(LOG_DEBUG, "解析字符串【%s】以获取可信 MAC 地址", ptr);
 
 	/* strsep modifies original, so let's make a copy */
 	ptrcopyptr = ptrcopy = safe_strdup(ptr);
@@ -1153,13 +1153,13 @@ int add_to_blocked_mac_list(const char possiblemac[])
 
 	/* check for valid format */
 	if (!check_mac_format(possiblemac)) {
-		debug(LOG_NOTICE, "[%s] not a valid MAC address to block", possiblemac);
+		debug(LOG_NOTICE, "【%s】不是有效的MAC地址，无法阻止", possiblemac);
 		return -1;
 	}
 
 	/* abort if not using BLOCK mechanism */
 	if (MAC_BLOCK != config.macmechanism) {
-		debug(LOG_NOTICE, "Attempt to access blocked MAC list but control mechanism != block");
+		debug(LOG_NOTICE, "尝试访问阻止的MAC列表，但控制机制 != block");
 		return -1;
 	}
 
@@ -1168,7 +1168,7 @@ int add_to_blocked_mac_list(const char possiblemac[])
 	/* See if MAC is already on the list; don't add duplicates */
 	for (p = config.blockedmaclist; p != NULL; p = p->next) {
 		if (!strcasecmp(p->mac,mac)) {
-			debug(LOG_INFO, "MAC address [%s] already on blocked list", mac);
+			debug(LOG_INFO, "MAC地址【%s】已在阻止列表中", mac);
 			return 1;
 		}
 	}
@@ -1178,7 +1178,7 @@ int add_to_blocked_mac_list(const char possiblemac[])
 	p->mac = safe_strdup(mac);
 	p->next = config.blockedmaclist;
 	config.blockedmaclist = p;
-	debug(LOG_INFO, "Added MAC address [%s] to blocked list", mac);
+	debug(LOG_INFO, "将MAC地址【%s】添加到阻止列表", mac);
 	return 0;
 }
 
@@ -1194,13 +1194,13 @@ int remove_from_blocked_mac_list(const char possiblemac[])
 
 	/* check for valid format */
 	if (!check_mac_format(possiblemac)) {
-		debug(LOG_NOTICE, "[%s] not a valid MAC address", possiblemac);
+		debug(LOG_NOTICE, "【%s】不是有效的MAC地址", possiblemac);
 		return -1;
 	}
 
 	/* abort if not using BLOCK mechanism */
 	if (MAC_BLOCK != config.macmechanism) {
-		debug(LOG_NOTICE, "Attempt to access blocked MAC list but control mechanism != block");
+		debug(LOG_NOTICE, "尝试访问阻止的MAC列表，但控制机制 != block");
 		return -1;
 	}
 
@@ -1208,7 +1208,7 @@ int remove_from_blocked_mac_list(const char possiblemac[])
 
 	/* If empty list, nothing to do */
 	if (config.blockedmaclist == NULL) {
-		debug(LOG_INFO, "MAC address [%s] not on empty blocked list", mac);
+		debug(LOG_INFO, "MAC地址【%s】不在空的阻止列表中", mac);
 		return -1;
 	}
 
@@ -1218,14 +1218,14 @@ int remove_from_blocked_mac_list(const char possiblemac[])
 			/* found it */
 			del = *p;
 			*p = del->next;
-			debug(LOG_INFO, "Removed MAC address [%s] from blocked list", mac);
+			debug(LOG_INFO, "从阻止列表中删除了MAC地址【%s】", mac);
 			free(del);
 			return 0;
 		}
 	}
 
 	/* MAC was not on list */
-	debug(LOG_INFO, "MAC address [%s] not on  blocked list", mac);
+	debug(LOG_INFO, "MAC地址【%s】不在阻止列表中", mac);
 	return -1;
 }
 
@@ -1238,7 +1238,7 @@ void parse_blocked_mac_list(const char ptr[])
 	char *ptrcopy = NULL, *ptrcopyptr;
 	char *possiblemac = NULL;
 
-	debug(LOG_DEBUG, "Parsing string [%s] for MAC addresses to block", ptr);
+	debug(LOG_DEBUG, "正在解析字符串【%s】以获取要阻止的MAC地址", ptr);
 
 	/* strsep modifies original, so let's make a copy */
 	ptrcopyptr = ptrcopy = safe_strdup(ptr);
@@ -1264,13 +1264,13 @@ int add_to_allowed_mac_list(const char possiblemac[])
 
 	/* check for valid format */
 	if (!check_mac_format(possiblemac)) {
-		debug(LOG_NOTICE, "[%s] not a valid MAC address to allow", possiblemac);
+		debug(LOG_NOTICE, "【%s】不是允许的有效MAC地址", possiblemac);
 		return -1;
 	}
 
 	/* abort if not using ALLOW mechanism */
 	if (MAC_ALLOW != config.macmechanism) {
-		debug(LOG_NOTICE, "Attempt to access allowed MAC list but control mechanism != allow");
+		debug(LOG_NOTICE, "尝试访问允许的 MAC 列表，但控制机制 != allow");
 		return -1;
 	}
 
@@ -1279,7 +1279,7 @@ int add_to_allowed_mac_list(const char possiblemac[])
 	/* See if MAC is already on the list; don't add duplicates */
 	for (p = config.allowedmaclist; p != NULL; p = p->next) {
 		if (!strcasecmp(p->mac, mac)) {
-			debug(LOG_INFO, "MAC address [%s] already on allowed list", mac);
+			debug(LOG_INFO, "MAC地址【%s】已在允许列表中", mac);
 			return 1;
 		}
 	}
@@ -1289,7 +1289,7 @@ int add_to_allowed_mac_list(const char possiblemac[])
 	p->mac = safe_strdup(mac);
 	p->next = config.allowedmaclist;
 	config.allowedmaclist = p;
-	debug(LOG_INFO, "Added MAC address [%s] to allowed list", mac);
+	debug(LOG_INFO, "将MAC地址【%s】添加到允许列表", mac);
 	return 0;
 }
 
@@ -1305,13 +1305,13 @@ int remove_from_allowed_mac_list(const char possiblemac[])
 
 	/* check for valid format */
 	if (!check_mac_format(possiblemac)) {
-		debug(LOG_NOTICE, "[%s] not a valid MAC address", possiblemac);
+		debug(LOG_NOTICE, "【%s】不是允许的有效MAC地址", possiblemac);
 		return -1;
 	}
 
 	/* abort if not using ALLOW mechanism */
 	if (MAC_ALLOW != config.macmechanism) {
-		debug(LOG_NOTICE, "Attempt to access allowed MAC list but control mechanism != allow");
+		debug(LOG_NOTICE, "尝试访问允许的MAC列表，但控制机制 != allow");
 		return -1;
 	}
 
@@ -1319,7 +1319,7 @@ int remove_from_allowed_mac_list(const char possiblemac[])
 
 	/* If empty list, nothing to do */
 	if (config.allowedmaclist == NULL) {
-		debug(LOG_INFO, "MAC address [%s] not on empty allowed list", mac);
+		debug(LOG_INFO, "MAC地址【%s】不在空的允许列表中", mac);
 		return -1;
 	}
 
@@ -1329,14 +1329,14 @@ int remove_from_allowed_mac_list(const char possiblemac[])
 			/* found it */
 			del = *p;
 			*p = del->next;
-			debug(LOG_INFO, "Removed MAC address [%s] from allowed list", mac);
+			debug(LOG_INFO, "从允许列表中删除了MAC地址【%s】", mac);
 			free(del);
 			return 0;
 		}
 	}
 
 	/* MAC was not on list */
-	debug(LOG_INFO, "MAC address [%s] not on  allowed list", mac);
+	debug(LOG_INFO, "MAC地址【%s】不在允许列表中", mac);
 	return -1;
 }
 
@@ -1349,7 +1349,7 @@ void parse_allowed_mac_list(const char ptr[])
 	char *ptrcopyptr;
 	char *possiblemac = NULL;
 
-	debug(LOG_DEBUG, "Parsing string [%s] for MAC addresses to allow", ptr);
+	debug(LOG_DEBUG, "解析字符串【%s】以获取允许的MAC地址", ptr);
 
 	/* strsep modifies original, so let's make a copy */
 	ptrcopyptr = ptrcopy = safe_strdup(ptr);
@@ -1397,19 +1397,19 @@ config_validate(void)
 	config_notnull(config.gw_interface, "GatewayInterface");
 
 	if (missing_parms) {
-		debug(LOG_ERR, "Configuration is not complete, exiting...");
+		debug(LOG_ERR, "配置不完整，退出...");
 		exit(1);
 	}
 
 	if (config.preauth_idle_timeout > 0 && config.checkinterval >= (60 * config.preauth_idle_timeout) / 2) {
-		debug(LOG_ERR, "Setting checkinterval (%ds) must be smaller than half of preauth_idle_timeout (%ds)",
-			config.checkinterval, 60 * config.preauth_idle_timeout);
+		debug(LOG_ERR, "设置的检测间隔【%ds】必须小于预认证空闲超时时间的一半【%ds】",
+        		config.checkinterval, 60 * config.preauth_idle_timeout);
 		exit(1);
 	}
 
 	if (config.auth_idle_timeout > 0 && config.checkinterval >= (60 * config.auth_idle_timeout) / 2) {
-		debug(LOG_ERR, "Setting checkinterval (%ds) must be smaller than half of auth_idle_timeout (%ds)",
-			config.checkinterval, 60 * config.auth_idle_timeout);
+		debug(LOG_ERR, "设置的检测间隔【%ds】必须小于认证空闲超时时间的一半【%ds】",
+        		config.checkinterval, 60 * config.auth_idle_timeout);
 		exit(1);
 	}
 }
@@ -1421,7 +1421,7 @@ static void
 config_notnull(const void *parm, const char parmname[])
 {
 	if (parm == NULL) {
-		debug(LOG_ERR, "%s is not set", parmname);
+		debug(LOG_ERR, "【%s】未设置", parmname);
 		missing_parms = 1;
 	}
 }

@@ -123,7 +123,7 @@ _client_list_append(const char mac[], const char ip[])
 
 	config = config_get_config();
 	if (client_count >= config->maxclients) {
-		debug(LOG_NOTICE, "Already list %d clients, cannot add %s %s", client_count, ip, mac);
+		debug(LOG_NOTICE, "已列出【%d】个客户端，无法添加【%s】【%s】", client_count, ip, mac);
 		return NULL;
 	}
 
@@ -156,7 +156,7 @@ _client_list_append(const char mac[], const char ip[])
 
 	client->id = client_id;
 
-	debug(LOG_NOTICE, "Adding %s %s token %s to client list",
+	debug(LOG_NOTICE, "将【%s】【%s】，token【%s】添加到客户端列表",
 		client->ip, client->mac, client->token ? client->token : "none");
 
 	if (prevclient == NULL) {
@@ -203,13 +203,13 @@ client_list_add_client(const char mac[], const char ip[])
 
 	if (!check_mac_format(mac)) {
 		/* Inappropriate format in IP address */
-		debug(LOG_NOTICE, "Illegal MAC format [%s]", mac);
+		debug(LOG_NOTICE, "非法 MAC 格式【%s】", mac);
 		return NULL;
 	}
 
 	if (!check_ip_format(ip)) {
 		/* Inappropriate format in IP address */
-		debug(LOG_NOTICE, "Illegal IP format [%s]", ip);
+		debug(LOG_NOTICE, "非法 IP 格式【%s】", ip);
 		return NULL;
 	}
 
@@ -217,7 +217,7 @@ client_list_add_client(const char mac[], const char ip[])
 	if (!client) {
 		client = _client_list_append(mac, ip);
 	} else {
-		debug(LOG_INFO, "Client %s %s token %s already on client list", ip, mac, client->token);
+		debug(LOG_INFO, "客户端【%s】【%s】，token【%s】已在客户端列表中", ip, mac, client->token);
 	}
 
 	return client;
@@ -385,9 +385,9 @@ client_list_delete(t_client *client)
 	ptr = firstclient;
 
 	if (ptr == NULL) {
-		debug(LOG_ERR, "Node list empty!");
+		debug(LOG_ERR, "节点列表为空！");
 	} else if (ptr == client) {
-		debug(LOG_NOTICE, "Deleting %s %s token %s from client list",
+		debug(LOG_NOTICE, "从客户端列表中删除【%s】【%s】，token【%s】",
 			  client->ip, client->mac, client->token ? client->token : "none");
 		firstclient = ptr->next;
 		_client_list_free_node(client);
@@ -399,10 +399,10 @@ client_list_delete(t_client *client)
 		}
 		/* If we reach the end before finding out element, complain. */
 		if (ptr->next == NULL) {
-			debug(LOG_ERR, "Node to delete could not be found.");
+			debug(LOG_ERR, "找不到要删除的节点。");
 		} else {
 			/* Free element. */
-			debug(LOG_NOTICE, "Deleting %s %s token %s from client list",
+			debug(LOG_NOTICE, "从客户端列表中删除【%s】【%s】，token【%s】",
 				  client->ip, client->mac, client->token ? client->token : "none");
 			ptr->next = client->next;
 			_client_list_free_node(client);

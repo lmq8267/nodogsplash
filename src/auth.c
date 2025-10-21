@@ -150,7 +150,7 @@ fw_refresh_client_list(void)
 
 	/* Update all the counters */
 	if (-1 == iptables_fw_counters_update()) {
-		debug(LOG_ERR, "Could not get counters from firewall!");
+		debug(LOG_ERR, "无法从防火墙获取计数器！");
 		return;
 	}
 
@@ -160,7 +160,7 @@ fw_refresh_client_list(void)
 		cp2 = cp1->next;
 
 		if (!(cp1 = client_list_find_by_id(cp1->id))) {
-			debug(LOG_ERR, "Client was freed while being re-validated!");
+			debug(LOG_ERR, "客户端在重新验证时被释放！");
 			continue;
 		}
 
@@ -169,7 +169,7 @@ fw_refresh_client_list(void)
 
 		if (cp1->session_end > 0 && cp1->session_end <= now) {
 			/* Session ended (only > 0 for FW_MARK_AUTHENTICATED by binauth) */
-			debug(LOG_NOTICE, "Force out user: %s %s, connected: %ds, in: %llukB, out: %llukB",
+			debug(LOG_NOTICE, "强制踢出用户：【 %s】【%s】, 已连接：【%ds】, 上传：【%llukB】, 下载：【%llukB】",
 				cp1->ip, cp1->mac, now - cp1->session_end,
 				cp1->counters.incoming / 1000, cp1->counters.outgoing / 1000);
 
@@ -186,7 +186,7 @@ fw_refresh_client_list(void)
 				&& conn_state == FW_MARK_PREAUTHENTICATED
 				&& (last_updated + preauth_idle_timeout_secs) <= now) {
 			/* Timeout inactive preauthenticated user */
-			debug(LOG_NOTICE, "Timeout preauthenticated idle user: %s %s, inactive: %ds, in: %llukB, out: %llukB",
+			debug(LOG_NOTICE, "超时的预认证空闲用户：【%s】【%s】, 未活动：【%ds】, 上传：【%llukB】, 下载：【%llukB】",
 				cp1->ip, cp1->mac, now - last_updated,
 				cp1->counters.incoming / 1000, cp1->counters.outgoing / 1000);
 
@@ -195,7 +195,7 @@ fw_refresh_client_list(void)
 				&& conn_state == FW_MARK_AUTHENTICATED
 				&& (last_updated + auth_idle_timeout_secs) <= now) {
 			/* Timeout inactive user */
-			debug(LOG_NOTICE, "Timeout authenticated idle user: %s %s, inactive: %ds, in: %llukB, out: %llukB",
+			debug(LOG_NOTICE, "已验证空闲用户超时：【%s】【%s】, 未活动：【%ds】, 上传：【%llukB】, 下载：【%llukB】",
 				cp1->ip, cp1->mac, now - last_updated,
 				cp1->counters.incoming / 1000, cp1->counters.outgoing / 1000);
 
@@ -217,7 +217,7 @@ thread_client_timeout_check(void *arg)
 	struct timespec timeout;
 
 	while (1) {
-		debug(LOG_DEBUG, "Running fw_refresh_client_list()");
+		debug(LOG_DEBUG, "运行 fw_refresh_client_list()");
 
 		fw_refresh_client_list();
 
@@ -253,7 +253,7 @@ auth_client_deauth(const unsigned id, const char *reason)
 
 	/* Client should already have hit the server and be on the client list */
 	if (client == NULL) {
-		debug(LOG_ERR, "Client %u to deauthenticate is not on client list", id);
+		debug(LOG_ERR, "要取消身份验证的客户端【%u】不在客户端列表中", id);
 		goto end;
 	}
 
@@ -281,7 +281,7 @@ auth_client_auth_nolock(const unsigned id, const char *reason)
 
 	/* Client should already have hit the server and be on the client list */
 	if (client == NULL) {
-		debug(LOG_ERR, "Client %u to authenticate is not on client list", id);
+		debug(LOG_ERR, "需要验证的客户端 【%u】不在客户端列表中", id);
 		return -1;
 	}
 
@@ -427,7 +427,7 @@ auth_client_deauth_all()
 		cp2 = cp1->next;
 
 		if (!(cp1 = client_list_find_by_id(cp1->id))) {
-			debug(LOG_ERR, "Client was freed while being re-validated!");
+			debug(LOG_ERR, "客户端在重新验证时被释放！");
 			continue;
 		}
 

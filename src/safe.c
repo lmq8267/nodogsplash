@@ -41,7 +41,7 @@ void * safe_malloc (size_t size)
 	void * retval = NULL;
 	retval = malloc(size);
 	if (!retval) {
-		debug(LOG_CRIT, "Failed to malloc %d bytes of memory: %s. Bailing out.", size, strerror(errno));
+		debug(LOG_CRIT, "分配【%d】字节内存失败: %s，程序即将退出。", size, strerror(errno));
 		exit(1);
 	}
 	return (retval);
@@ -51,12 +51,12 @@ char * safe_strdup(const char s[])
 {
 	char * retval = NULL;
 	if (!s) {
-		debug(LOG_CRIT, "safe_strdup called with NULL which would have crashed strdup. Bailing out.");
+		debug(LOG_CRIT, "safe_strdup 调用时传入了 NULL，这会导致 strdup 崩溃，程序即将退出。");
 		exit(1);
 	}
 	retval = strdup(s);
 	if (!retval) {
-		debug(LOG_CRIT, "Failed to duplicate a string: %s. Bailing out.", strerror(errno));
+		debug(LOG_CRIT, "字符串复制失败: %s，程序即将退出。", strerror(errno));
 		exit(1);
 	}
 	return (retval);
@@ -81,7 +81,7 @@ int safe_vasprintf(char **strp, const char *fmt, va_list ap)
 	retval = vasprintf(strp, fmt, ap);
 
 	if (retval == -1) {
-		debug(LOG_CRIT, "Failed to vasprintf: %s.  Bailing out", strerror(errno));
+		debug(LOG_CRIT, "vasprintf 失败: %s，程序即将退出。", strerror(errno));
 		exit (1);
 	}
 
@@ -94,7 +94,7 @@ pid_t safe_fork(void)
 	result = fork();
 
 	if (result == -1) {
-		debug(LOG_CRIT, "Failed to fork: %s. Bailing out", strerror(errno));
+		debug(LOG_CRIT, "分叉失败: %s，程序即将退出。", strerror(errno));
 		abort();
 	} else if (result == 0) {
 		/* I'm the child - do some cleanup */

@@ -208,7 +208,7 @@ tc_init_tc()
 	if (upload_limit > 0) {
 		ret = execute("ip link set %s up", upload_ifbname);
 		if (ret != 0) {
-			debug(LOG_ERR, "Could not set %s up. Upload limiting will not work", upload_ifbname);
+			debug(LOG_ERR, "无法设置【%s】，上传流量限制将无法生效", upload_ifbname);
 			rc = -1;
 		} else {
 			rc |= tc_attach_upload_qdisc(config->gw_interface, upload_ifbname, upload_limit);

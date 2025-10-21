@@ -6,7 +6,7 @@ CFLAGS+=-Isrc
 LDFLAGS+=-pthread
 LDLIBS=-lmicrohttpd
 
-STRIP ?= yes
+STRIP?=strip
 ENABLE_STATE_FILE ?= yes
 
 NDS_OBJS=src/auth.o src/client_list.o src/commandline.o src/conf.o \
@@ -19,20 +19,40 @@ LDLIBS += -ljson-c
 NDS_OBJS += src/state_file.o
 endif
 
-.PHONY: all clean install checkastyle fixstyle deb tests
+# 定义颜色变量
+RED = \033[31m
+GREEN = \033[32m
+YELLOW = \033[33m
+BLUE = \033[34m
+RESET = \033[0m
 
-all: nodogsplash ndsctl
+# 输出函数
+define print_step
+	@echo "$(1)$(2)$(RESET)"
+endef
+
+.PHONY: clean all 
+
+all: clean nodogsplash ndsctl
 
 %.o : %.c
+	$(call print_step, $(BLUE), 编译目标文件 $@)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
 nodogsplash: $(NDS_OBJS) $(LIBHTTPD_OBJS)
+	$(call print_step, $(GREEN), 链接 nodogsplash 可执行文件)
 	$(CC) $(LDFLAGS) -o nodogsplash $+ $(LDLIBS)
+	$(call print_step, $(YELLOW), 去除调试信息 nodogsplash)
+	$(STRIP) nodogsplash
 
 ndsctl: src/ndsctl.o
+	$(call print_step, $(GREEN), 链接 ndsctl 可执行文件)
 	$(CC) $(LDFLAGS) -o ndsctl $+ $(LDLIBS)
+	$(call print_step, $(YELLOW), 去除调试信息 ndsctl)
+	$(STRIP) ndsctl
 
 clean:
+	$(call print_step, $(RED), 清理生成文件)
 	rm -f nodogsplash ndsctl src/*.o
 	rm -rf dist
 

@@ -44,7 +44,7 @@
 
 /** Defaults configuration values */
 #ifndef SYSCONFDIR
-#define DEFAULT_CONFIGFILE "/etc/nodogsplash/nodogsplash.conf"
+#define DEFAULT_CONFIGFILE "/etc/storage/nodogsplash/nodogsplash.conf"
 #else
 #define DEFAULT_CONFIGFILE SYSCONFDIR"/nodogsplash/nodogsplash.conf"
 #endif
@@ -52,7 +52,7 @@
 #define DEFAULT_DEBUGLEVEL 1
 #define DEFAULT_MAXCLIENTS 20
 #define DEFAULT_GATEWAY_IPRANGE "0.0.0.0/0"
-#define DEFAULT_GATEWAYNAME "NoDogSplash"
+#define DEFAULT_GATEWAYNAME "Padavan"
 #define DEFAULT_GATEWAYPORT 2050
 #define DEFAULT_CHECKINTERVAL 30
 #define DEFAULT_SESSION_TIMEOUT 0
@@ -60,11 +60,11 @@
 #define DEFAULT_SESSION_LIMIT_BLOCK 0
 #define DEFAULT_PREAUTH_IDLE_TIMEOUT 10
 #define DEFAULT_AUTH_IDLE_TIMEOUT 120
-#define DEFAULT_WEBROOT "/etc/nodogsplash/htdocs"
-#define DEFAULT_SPLASHPAGE "splash.html"
+#define DEFAULT_WEBROOT "/etc/storage/nodogsplash/htdocs"
+#define DEFAULT_SPLASHPAGE "login.html"
 #define DEFAULT_STATUSPAGE "status.html"
-#define DEFAULT_AUTHDIR "nodogsplash_auth"
-#define DEFAULT_DENYDIR "nodogsplash_deny"
+#define DEFAULT_AUTHDIR "status"
+#define DEFAULT_DENYDIR "logout"
 #define DEFAULT_MACMECHANISM MAC_BLOCK
 #define DEFAULT_SET_MSS 1
 #define DEFAULT_MSS_VALUE 0
@@ -241,15 +241,15 @@ int check_mac_format(const char[]);
 int set_debuglevel(const char[]);
 
 #define LOCK_CONFIG() do { \
-	debug(LOG_DEBUG, "Locking config"); \
+	debug(LOG_DEBUG, "锁定配置"); \
 	pthread_mutex_lock(&config_mutex); \
-	debug(LOG_DEBUG, "Config locked"); \
+	debug(LOG_DEBUG, "配置已锁定"); \
 } while (0)
 
 #define UNLOCK_CONFIG() do { \
-	debug(LOG_DEBUG, "Unlocking config"); \
+	debug(LOG_DEBUG, "解锁配置"); \
 	pthread_mutex_unlock(&config_mutex); \
-	debug(LOG_DEBUG, "Config unlocked"); \
+	debug(LOG_DEBUG, "配置已解锁"); \
 } while (0)
 
 #endif /* _NDS_CONF_H_ */

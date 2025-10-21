@@ -87,20 +87,20 @@ static int _execute_ret(char* msg, int msg_len, const char *cmd)
 	FILE *fp;
 	int rc;
 
-	debug(LOG_DEBUG, "Executing command: %s", cmd);
+	debug(LOG_DEBUG, "执行命令:【%s】", cmd);
 
 	/* Temporarily get rid of SIGCHLD handler (see main.c), until child exits. */
-	debug(LOG_DEBUG,"Setting default SIGCHLD handler SIG_DFL");
+	debug(LOG_DEBUG,"设置默认 SIGCHLD 处理程序 SIG_DF");
 	sa.sa_handler = SIG_DFL;
 	sigemptyset(&sa.sa_mask);
 	sa.sa_flags = SA_NOCLDSTOP | SA_RESTART;
 	if (sigaction(SIGCHLD, &sa, &oldsa) == -1) {
-		debug(LOG_ERR, "sigaction() failed to set default SIGCHLD handler: %s", strerror(errno));
+		debug(LOG_ERR, "sigaction() 无法设置默认 SIGCHLD 处理程序: %s", strerror(errno));
 	}
 
 	fp = popen(cmd, "r");
 	if (fp == NULL) {
-		debug(LOG_ERR, "popen(): %s", strerror(errno));
+		debug(LOG_ERR, "popen():【%s】", strerror(errno));
 		rc = -1;
 		goto abort;
 	}
@@ -112,7 +112,7 @@ static int _execute_ret(char* msg, int msg_len, const char *cmd)
 	rc = pclose(fp);
 
 	if (WIFSIGNALED(rc) != 0) {
-		debug(LOG_WARNING, "Command process exited due to signal %d", WTERMSIG(rc));
+		debug(LOG_WARNING, "命令进程因信号【%d】退出", WTERMSIG(rc));
 	}
 
 	rc = WEXITSTATUS(rc);
@@ -121,7 +121,7 @@ abort:
 
 	/* Restore signal handler */
 	if (sigaction(SIGCHLD, &oldsa, NULL) == -1) {
-		debug(LOG_ERR, "sigaction() failed to restore SIGCHLD handler! Error %s", strerror(errno));
+		debug(LOG_ERR, "sigaction() 恢复SIGCHLD处理程序失败！错误 %s", strerror(errno));
 	}
 
 	return rc;
@@ -138,7 +138,7 @@ int execute(const char fmt[], ...)
 	va_end(vlist);
 
 	if (rc < 0 || rc >= sizeof(cmd)) {
-		debug(LOG_ERR, "Format string too small or encoding error.");
+		debug(LOG_ERR, "格式字符串太小或编码错误");
 		return -1;
 	}
 
@@ -156,7 +156,7 @@ int execute_ret(char* msg, int msg_len, const char fmt[], ...)
 	va_end(vlist);
 
 	if (rc < 0 || rc >= sizeof(cmd)) {
-		debug(LOG_ERR, "Format string too small or encoding error.");
+		debug(LOG_ERR, "格式字符串太小或编码错误");
 		return -1;
 	}
 
@@ -171,7 +171,7 @@ get_iface_ip(const char ifname[], int ip6)
 	struct ifaddrs *addrs;
 
 	if (getifaddrs(&addrs) < 0) {
-		debug(LOG_ERR, "getifaddrs(): %s", strerror(errno));
+		debug(LOG_ERR, "getifaddrs():【%s】", strerror(errno));
 		return NULL;
 	}
 
@@ -216,13 +216,13 @@ get_iface_mac(const char ifname[])
 
 	s = socket(config->ip6 ? AF_INET6 : AF_INET, SOCK_DGRAM, 0);
 	if (-1 == s) {
-		debug(LOG_ERR, "get_iface_mac socket: %s", strerror(errno));
+		debug(LOG_ERR, "get_iface_mac socket:【%s】", strerror(errno));
 		return NULL;
 	}
 
 	r = ioctl(s, SIOCGIFHWADDR, &ifr);
 	if (r == -1) {
-		debug(LOG_ERR, "get_iface_mac ioctl(SIOCGIFHWADDR): %s", strerror(errno));
+		debug(LOG_ERR, "get_iface_mac ioctl(SIOCGIFHWADDR):【%s】", strerror(errno));
 		close(s);
 		return NULL;
 	}
@@ -242,7 +242,7 @@ get_iface_mac(const char ifname[])
 	struct sockaddr_dl *sdl;
 
 	if (getifaddrs(&ifap) == -1) {
-		debug(LOG_ERR, "getifaddrs(): %s", strerror(errno));
+		debug(LOG_ERR, "getifaddrs():【%s】", strerror(errno));
 		return NULL;
 	}
 	for (ifa = ifap; ifa != NULL; ifa = ifa->ifa_next) {
@@ -251,7 +251,7 @@ get_iface_mac(const char ifname[])
 			break;
 	}
 	if (ifa == NULL) {
-		debug(LOG_ERR, "%s: no link-layer address assigned");
+		debug(LOG_ERR, "未分配链路层地址:【%s】");
 		goto out;
 	}
 	sdl = (struct sockaddr_dl *)ifa->ifa_addr;
@@ -285,19 +285,19 @@ get_ext_iface(void)
 	pthread_mutex_t cond_mutex = PTHREAD_MUTEX_INITIALIZER;
 	struct timespec timeout;
 
-	debug(LOG_DEBUG, "get_ext_iface(): Autodectecting the external interface from routing table");
+	debug(LOG_DEBUG, "get_ext_iface(): 从路由表中自动检测外部接口");
 	for (i = 1; i <= NUM_EXT_INTERFACE_DETECT_RETRY; i += 1) {
 		input = fopen("/proc/net/route", "r");
 		while (!feof(input)) {
 			int rc = fscanf(input, "%s %s %*s %*s %*s %*s %*s %*s %*s %*s %*s\n", device, gw);
 			if (rc == 2 && strcmp(gw, "00000000") == 0) {
 				fclose(input);
-				debug(LOG_INFO, "get_ext_iface(): Detected %s as the default interface after try %d", device, i);
+				debug(LOG_INFO, "get_ext_iface(): 尝试【%d】后检测到默认网络接口为【%s】", i, device);
 				return strdup(device);
 			}
 		}
 		fclose(input);
-		debug(LOG_ERR, "get_ext_iface(): Failed to detect the external interface after try %d (maybe the interface is not up yet?).  Retry limit: %d", i, NUM_EXT_INTERFACE_DETECT_RETRY);
+		debug(LOG_ERR, "get_ext_iface(): 尝试【%d】次后仍无法检测到外部网络接口（可能接口尚未启动）。重试次数上限:【%d】", i, NUM_EXT_INTERFACE_DETECT_RETRY);
 
 		/* Sleep for EXT_INTERFACE_DETECT_RETRY_INTERVAL seconds */
 		timeout.tv_sec = time(NULL) + EXT_INTERFACE_DETECT_RETRY_INTERVAL;
@@ -311,7 +311,7 @@ get_ext_iface(void)
 		pthread_mutex_unlock(&cond_mutex);
 	}
 
-	debug(LOG_ERR, "get_ext_iface(): Failed to detect the external interface after %d tries, aborting", i);
+	debug(LOG_ERR, "get_ext_iface(): 尝试【%d】次后仍无法检测外部接口，正在中止", i);
 	exit(1);
 #endif
 	return NULL;
@@ -390,88 +390,86 @@ ndsctl_status(FILE *fp)
 
 	config = config_get_config();
 
-	fprintf(fp, "==================\nNoDogSplash Status\n====\n");
+	fprintf(fp, "==================\nNoDogSplash 状态\n==================\n");
 
 	now = time(NULL);
 	uptimesecs = now - started_time;
 
-	fprintf(fp, "Version: " VERSION "\n");
+	fprintf(fp, "版本: " VERSION "\n");
 
 	format_duration(started_time, now, durationbuf);
-	fprintf(fp, "Uptime: %s\n", durationbuf);
+	fprintf(fp, "运行时间: %s\n", durationbuf);
 
-	fprintf(fp, "Gateway Name: %s\n", config->gw_name);
-	fprintf(fp, "Managed interface: %s\n", config->gw_interface);
-	fprintf(fp, "Managed IP range: %s\n", config->gw_iprange);
-	fprintf(fp, "Server listening: http://%s\n", config->gw_http_name);
+	fprintf(fp, "网关名称: %s\n", config->gw_name);
+	fprintf(fp, "管理接口: %s\n", config->gw_interface);
+	fprintf(fp, "管理 IP 范围: %s\n", config->gw_iprange);
+	fprintf(fp, "服务器监听地址: http://%s\n", config->gw_http_name);
 	if (strncmp(config->gw_http_name_port, config->gw_http_name, strlen(config->gw_http_name_port)))
-		fprintf(fp, "Server listening: http://%s\n", config->gw_http_name_port);
+		fprintf(fp, "服务器监听地址: http://%s\n", config->gw_http_name_port);
 	if (config->gw_domain)
-		fprintf(fp, "Server listening: http://%s\n", config->gw_domain);
+		fprintf(fp, "服务器域名地址: http://%s\n", config->gw_domain);
 
 	if (config->binauth) {
-		fprintf(fp, "Binauth Script: %s\n", config->binauth);
+		fprintf(fp, "Binauth 脚本: %s\n", config->binauth);
 	} else {
-		fprintf(fp, "Binauth: Disabled\n");
+		fprintf(fp, "Binauth: 已禁用\n");
 	}
 
 	if (config->preauth) {
-		fprintf(fp, "Preauth Script: %s\n", config->preauth);
+		fprintf(fp, "预认证脚本: %s\n", config->preauth);
 	} else {
-		fprintf(fp, "Preauth: Disabled\n");
+		fprintf(fp, "预认证: 已禁用\n");
 	}
 
-	fprintf(fp, "Client Check Interval: %ds\n", config->checkinterval);
+	fprintf(fp, "客户端检查间隔: %ds\n", config->checkinterval);
 	format_duration(0, config->preauth_idle_timeout * 60, durationbuf);
-	fprintf(fp, "Preauth Idle Timeout: %sm\n", durationbuf);
+	fprintf(fp, "预认证空闲超时: %sm\n", durationbuf);
 	format_duration(0, config->auth_idle_timeout * 60, durationbuf);
-	fprintf(fp, "Auth Idle Timeout: %s\n", durationbuf);
+	fprintf(fp, "认证空闲超时: %s\n", durationbuf);
 	format_duration(0, config->session_timeout * 60, durationbuf);
-	fprintf(fp, "Session Timeout: %s\n", durationbuf);
+	fprintf(fp, "会话超时: %s\n", durationbuf);
 
-	format_duration(0, config->session_timeout * 60, durationbuf);
-	fprintf(fp, "Session Timeout: %s\n", durationbuf);
-	fprintf(fp, "Block after Session timed out: %s\n", config->session_timeout_block ? "yes" : "no");
+	fprintf(fp, "会话超时后阻止访问: %s\n", config->session_timeout_block ? "是" : "否");
 
 	if (config->session_limit_block) {
-		fprintf(fp, "Block after Download limit: %d MB\n", config->session_limit_block);
+		fprintf(fp, "下载限制超出后阻止: %d MB\n", config->session_limit_block);
 	}
 
 	if (config->redirectURL) {
-		fprintf(fp, "Redirect URL: %s\n", config->redirectURL);
+		fprintf(fp, "重定向 URL: %s\n", config->redirectURL);
 	}
 
-	fprintf(fp, "Traffic control: %s\n", config->traffic_control ? "yes" : "no");
+	fprintf(fp, "流量控制: %s\n", config->traffic_control ? "启用" : "禁用");
 
 	if (config->traffic_control) {
 		if (config->download_limit > 0) {
-			fprintf(fp, "Download rate limit: %d kbit/s\n", config->download_limit);
+			fprintf(fp, "下载速率限制: %d kbit/s\n", config->download_limit);
 		} else {
-			fprintf(fp, "Download rate limit: none\n");
+			fprintf(fp, "下载速率限制: 无\n");
 		}
 		if (config->upload_limit > 0) {
-			fprintf(fp, "Upload rate limit: %d kbit/s\n", config->upload_limit);
+			fprintf(fp, "上传速率限制: %d kbit/s\n", config->upload_limit);
 		} else {
-			fprintf(fp, "Upload rate limit: none\n");
+			fprintf(fp, "上传速率限制: 无\n");
 		}
 	}
 
 	download_bytes = iptables_fw_total_download();
-	fprintf(fp, "Total download: %llu kByte", download_bytes / 1000);
-	fprintf(fp, "; avg: %.2f kbit/s\n", ((double) download_bytes) / 125 / uptimesecs);
+	fprintf(fp, "总下载: %llu kByte", download_bytes / 1000);
+	fprintf(fp, "; 平均速率: %.2f kbit/s\n", ((double) download_bytes) / 125 / uptimesecs);
 
 	upload_bytes = iptables_fw_total_upload();
-	fprintf(fp, "Total upload: %llu kByte", upload_bytes / 1000);
-	fprintf(fp, "; avg: %.2f kbit/s\n", ((double) upload_bytes) / 125 / uptimesecs);
-	fprintf(fp, "====\n");
-	fprintf(fp, "Client authentications since start: %u\n", authenticated_since_start);
+	fprintf(fp, "总上传: %llu kByte", upload_bytes / 1000);
+	fprintf(fp, "; 平均速率: %.2f kbit/s\n", ((double) upload_bytes) / 125 / uptimesecs);
+	fprintf(fp, "==================\n");
+	fprintf(fp, "自启动以来认证的客户端数量: %u\n", authenticated_since_start);
 
 	/* Update the client's counters so info is current */
 	iptables_fw_counters_update();
 
 	LOCK_CLIENT_LIST();
 
-	fprintf(fp, "Current clients: %d\n", get_client_list_length());
+	fprintf(fp, "当前客户端数量: %d\n", get_client_list_length());
 
 	client = client_get_first_client();
 	if (client) {
@@ -480,33 +478,33 @@ ndsctl_status(FILE *fp)
 
 	indx = 0;
 	while (client != NULL) {
-		fprintf(fp, "Client %d\n", indx);
+		fprintf(fp, "客户端 %d\n", indx);
 
 		fprintf(fp, "  IP: %s MAC: %s\n", client->ip, client->mac);
 
 		format_time(client->counters.last_updated, timebuf);
 		format_duration(client->counters.last_updated, now, durationbuf);
-		fprintf(fp, "  Last Activity: %s (%s ago)\n", timebuf, durationbuf);
+		fprintf(fp, "  最近活跃: %s (%s 前)\n", timebuf, durationbuf);
 
 		if (client->session_start) {
 			format_time(client->session_start, timebuf);
 			format_duration(client->session_start, now, durationbuf);
-			fprintf(fp, "  Session Start: %s (%s ago)\n", timebuf, durationbuf);
+			fprintf(fp, "  会话开始: %s (%s 前)\n", timebuf, durationbuf);
 		} else {
-			fprintf(fp, "  Session Start: -\n");
+			fprintf(fp, "  会话开始: -\n");
 		}
 
 		if (client->session_end) {
 			format_time(client->session_end, timebuf);
 			format_duration(now, client->session_end, durationbuf);
-			fprintf(fp, "  Session End:   %s (%s left)\n", timebuf, durationbuf);
+			fprintf(fp, "  会话结束:   %s (还剩 %s)\n", timebuf, durationbuf);
 		} else {
-			fprintf(fp, "  Session End:   -\n");
+			fprintf(fp, "  会话结束:   -\n");
 		}
 
-		fprintf(fp, "  Token: %s\n", client->token ? client->token : "none");
+		fprintf(fp, "  Token: %s\n", client->token ? client->token : "无");
 
-		fprintf(fp, "  State: %s\n", fw_connection_state_as_string(client->fw_connection_state));
+		fprintf(fp, "  状态: %s\n", fw_connection_state_as_string(client->fw_connection_state));
 
 		download_bytes = client->counters.incoming;
 		upload_bytes = client->counters.outgoing;
@@ -517,7 +515,7 @@ ndsctl_status(FILE *fp)
 			durationsecs = 1;
 		}
 
-		fprintf(fp, "  Download: %llu kByte; avg: %.2f kbit/s\n  Upload:   %llu kByte; avg: %.2f kbit/s\n\n",
+		fprintf(fp, "  下载: %llu kByte; 平均: %.2f kbit/s\n  上传:   %llu kByte; 平均: %.2f kbit/s\n\n",
 				download_bytes / 1000, ((double)download_bytes) / 125 / durationsecs,
 				upload_bytes / 1000, ((double)upload_bytes) / 125 / durationsecs);
 
@@ -527,35 +525,35 @@ ndsctl_status(FILE *fp)
 
 	UNLOCK_CLIENT_LIST();
 
-	fprintf(fp, "====\n");
+	fprintf(fp, "==================\n");
 
-	fprintf(fp, "Blocked MAC addresses:");
+	fprintf(fp, "被阻止的 MAC 地址:");
 
 	if (config->macmechanism == MAC_ALLOW) {
-		fprintf(fp, " N/A\n");
+		fprintf(fp, " 不适用\n");
 	} else  if (config->blockedmaclist != NULL) {
 		fprintf(fp, "\n");
 		for (block_mac = config->blockedmaclist; block_mac != NULL; block_mac = block_mac->next) {
 			fprintf(fp, "  %s\n", block_mac->mac);
 		}
 	} else {
-		fprintf(fp, " none\n");
+		fprintf(fp, " 无\n");
 	}
 
-	fprintf(fp, "Allowed MAC addresses:");
+	fprintf(fp, "允许的 MAC 地址:");
 
 	if (config->macmechanism == MAC_BLOCK) {
-		fprintf(fp, " N/A\n");
+		fprintf(fp, " 不适用\n");
 	} else  if (config->allowedmaclist != NULL) {
 		fprintf(fp, "\n");
 		for (allow_mac = config->allowedmaclist; allow_mac != NULL; allow_mac = allow_mac->next) {
 			fprintf(fp, "  %s\n", allow_mac->mac);
 		}
 	} else {
-		fprintf(fp, " none\n");
+		fprintf(fp, " 无\n");
 	}
 
-	fprintf(fp, "Trusted MAC addresses:");
+	fprintf(fp, "受信任的 MAC 地址:");
 
 	if (config->trustedmaclist != NULL) {
 		fprintf(fp, "\n");
@@ -563,10 +561,10 @@ ndsctl_status(FILE *fp)
 			fprintf(fp, "  %s\n", trust_mac->mac);
 		}
 	} else {
-		fprintf(fp, " none\n");
+		fprintf(fp, " 无\n");
 	}
 
-	fprintf(fp, "========\n");
+	fprintf(fp, "==================\n");
 }
 
 void
@@ -593,26 +591,26 @@ ndsctl_clients(FILE *fp)
 
 	indx = 0;
 	while (client != NULL) {
-		fprintf(fp, "client_id=%d\n", indx);
-		fprintf(fp, "ip=%s\nmac=%s\n", client->ip, client->mac);
-		fprintf(fp, "added=%lld\n", (long long) client->session_start);
-		fprintf(fp, "active=%lld\n", (long long) client->counters.last_updated);
+		fprintf(fp, "客户端ID=%d\n", indx);
+		fprintf(fp, "IP地址=%s\nMAC地址=%s\n", client->ip, client->mac);
+		fprintf(fp, "加入时间=%lld\n", (long long) client->session_start);
+		fprintf(fp, "最后活跃时间=%lld\n", (long long) client->counters.last_updated);
 		if (client->session_start) {
-			fprintf(fp, "duration=%lld\n", (long long) (now - client->session_start));
+			fprintf(fp, "会话持续时间=%lld\n", (long long) (now - client->session_start));
 		} else {
-			fprintf(fp, "duration=%lld\n", 0ll);
+			fprintf(fp, "会话持续时间=%lld\n", 0ll);
 		}
 		fprintf(fp, "token=%s\n", client->token ? client->token : "none");
-		fprintf(fp, "state=%s\n", fw_connection_state_as_string(client->fw_connection_state));
+		fprintf(fp, "状态=%s\n", fw_connection_state_as_string(client->fw_connection_state));
 
 		durationsecs = now - client->session_start;
 		download_bytes = client->counters.incoming;
 		upload_bytes = client->counters.outgoing;
 
-		fprintf(fp, "downloaded=%llu\n", download_bytes/1000);
-		fprintf(fp, "avg_down_speed=%.2f\n", ((double)download_bytes) / 125 / durationsecs);
-		fprintf(fp, "uploaded=%llu\n", upload_bytes/1000);
-		fprintf(fp, "avg_up_speed=%.2f\n\n", ((double)upload_bytes) / 125 / durationsecs);
+		fprintf(fp, "已下载=%llu\n", download_bytes/1000);
+		fprintf(fp, "平均下载速率=%.2f\n", ((double)download_bytes) / 125 / durationsecs);
+		fprintf(fp, "已上传=%llu\n", upload_bytes/1000);
+		fprintf(fp, "平均上传速率=%.2f\n\n", ((double)upload_bytes) / 125 / durationsecs);
 
 		indx++;
 		client = client->next;
@@ -627,27 +625,27 @@ ndsctl_json_client(FILE *fp, const t_client *client, time_t now)
 	unsigned long int durationsecs;
 	unsigned long long int download_bytes, upload_bytes;
 
-	fprintf(fp, "\"id\":%d,\n", client->id);
-	fprintf(fp, "\"ip\":\"%s\",\n", client->ip);
-	fprintf(fp, "\"mac\":\"%s\",\n", client->mac);
-	fprintf(fp, "\"added\":%lld,\n", (long long) client->session_start);
-	fprintf(fp, "\"active\":%lld,\n", (long long) client->counters.last_updated);
+	fprintf(fp, "\"客户端ID\":%d,\n", client->id);
+	fprintf(fp, "\"IP地址\":\"%s\",\n", client->ip);
+	fprintf(fp, "\"MAC地址\":\"%s\",\n", client->mac);
+	fprintf(fp, "\"加入时间\":%lld,\n", (long long) client->session_start);
+	fprintf(fp, "\"最后活跃时间\":%lld,\n", (long long) client->counters.last_updated);
 	if (client->session_start) {
-		fprintf(fp, "\"duration\":%lld,\n", (long long) (now - client->session_start));
+		fprintf(fp, "\"会话持续时间\":%lld,\n", (long long) (now - client->session_start));
 	} else {
-		fprintf(fp, "\"duration\":%lld,\n", 0ll);
+		fprintf(fp, "\"会话持续时间\":%lld,\n", 0ll);
 	}
 	fprintf(fp, "\"token\":\"%s\",\n", client->token ? client->token : "none");
-	fprintf(fp, "\"state\":\"%s\",\n", fw_connection_state_as_string(client->fw_connection_state));
+	fprintf(fp, "\"状态\":\"%s\",\n", fw_connection_state_as_string(client->fw_connection_state));
 
 	durationsecs = now - client->session_start;
 	download_bytes = client->counters.incoming;
 	upload_bytes = client->counters.outgoing;
 
-	fprintf(fp, "\"downloaded\":%llu,\n", download_bytes / 1000);
-	fprintf(fp, "\"avg_down_speed\":%.2f,\n", ((double)download_bytes) / 125 / durationsecs);
-	fprintf(fp, "\"uploaded\":%llu,\n", upload_bytes / 1000);
-	fprintf(fp, "\"avg_up_speed\":%.2f\n", ((double)upload_bytes)/ 125 / durationsecs);
+	fprintf(fp, "\"已下载\":%llu,\n", download_bytes / 1000);
+	fprintf(fp, "\"平均下载速率\":%.2f,\n", ((double)download_bytes) / 125 / durationsecs);
+	fprintf(fp, "\"已上传\":%llu,\n", upload_bytes / 1000);
+	fprintf(fp, "\"平均上传速率\":%.2f\n", ((double)upload_bytes)/ 125 / durationsecs);
 }
 
 static void
@@ -689,11 +687,11 @@ ndsctl_json_all(FILE *fp)
 
 	LOCK_CLIENT_LIST();
 
-	fprintf(fp, "{\n\"client_length\": %d,\n", get_client_list_length());
+	fprintf(fp, "{\n\"客户端数量\": %d,\n", get_client_list_length());
 
 	client = client_get_first_client();
 
-	fprintf(fp, "\"clients\":{\n");
+	fprintf(fp, "\"客户端信息\":{\n");
 
 	while (client != NULL) {
 		fprintf(fp, "\"%s\":{\n", client->mac);

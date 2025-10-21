@@ -46,15 +46,15 @@ static void usage(void);
 static void
 usage(void)
 {
-	printf("Usage: nodogsplash [options]\n"
+	printf("用法: nodogsplash [参数]\n"
 		"\n"
-		"  -c <path>   Use configuration file\n"
-		"  -f          Run in foreground\n"
-		"  -d <level>  Debug level (%d-%d)\n"
-		"  -s          Log to syslog\n"
-		"  -w <path>   Ndsctl socket path\n"
-		"  -h          Print this help\n"
-		"  -v          Print version\n"
+		"  -c <路径>   使用配置文件\n"
+		"  -f          在前台运行\n"
+		"  -d <等级>   日志详细级别 (%d-%d)\n"
+		"  -s          日志记录到系统日志\n"
+		"  -w <路径>   Ndsctl 套接字路径\n"
+		"  -h          打印此帮助信息\n"
+		"  -v          打印版本号\n"
 		"\n", DEBUGLEVEL_MIN, DEBUGLEVEL_MAX
 	);
 }
@@ -95,7 +95,7 @@ void parse_commandline(int argc, char **argv)
 
 		case 'd':
 			if (set_debuglevel(optarg)) {
-				printf("Could not set debuglevel to %d\n", atoi(optarg));
+				printf("无法将日志详细级别设置为【%d】\n", atoi(optarg));
 				exit(1);
 			}
 			break;
@@ -105,7 +105,7 @@ void parse_commandline(int argc, char **argv)
 			break;
 
 		case 'v':
-			printf("This is Nodogsplash version " VERSION "\n");
+			printf("这是 Nodogsplash 版本 " VERSION "\n");
 			exit(1);
 			break;
 
@@ -121,7 +121,7 @@ void parse_commandline(int argc, char **argv)
 			break;
 
 		case '6':
-			printf("IPv6 is not supported yet\n");
+			printf("尚不支持 IPv6 ！\n");
 			exit(1);
 			config->ip6 = 1;
 			break;
