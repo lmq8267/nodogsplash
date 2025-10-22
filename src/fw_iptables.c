@@ -87,14 +87,14 @@ const char *
 fw_connection_state_as_string(int mark)
 {
 	if (mark == FW_MARK_PREAUTHENTICATED)
-		return "Preauthenticated";
+		return "预认证";
 	if (mark == FW_MARK_AUTHENTICATED)
-		return "Authenticated";
+		return "已认证";
 	if (mark == FW_MARK_TRUSTED)
-		return "Trusted";
+		return "受信任";
 	if (mark == FW_MARK_BLOCKED)
-		return "Blocked";
-	return "ERROR: unrecognized mark";
+		return "已阻止";
+	return "错误：未识别的标记";
 }
 
 /** @internal */

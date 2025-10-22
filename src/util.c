@@ -356,7 +356,8 @@ format_duration(time_t from, time_t to, char *buf)
 char *
 format_time(time_t time, char *buf)
 {
-	strftime(buf, 64, "%a %b %d %H:%M:%S %Y", localtime(&time));
+	struct tm *tm_info = localtime(&time);
+	strftime(buf, 64, "%Y年%m月%d日 %H:%M:%S", tm_info);
 	return buf;
 }
 
@@ -439,7 +440,7 @@ ndsctl_status(FILE *fp)
 		fprintf(fp, "重定向 URL: %s\n", config->redirectURL);
 	}
 
-	fprintf(fp, "流量控制: %s\n", config->traffic_control ? "启用" : "禁用");
+	fprintf(fp, "流量控制: %s\n", config->traffic_control ? "已启用" : "已禁用");
 
 	if (config->traffic_control) {
 		if (config->download_limit > 0) {
@@ -530,7 +531,7 @@ ndsctl_status(FILE *fp)
 	fprintf(fp, "被阻止的 MAC 地址:");
 
 	if (config->macmechanism == MAC_ALLOW) {
-		fprintf(fp, " 不适用\n");
+		fprintf(fp, " 无\n");
 	} else  if (config->blockedmaclist != NULL) {
 		fprintf(fp, "\n");
 		for (block_mac = config->blockedmaclist; block_mac != NULL; block_mac = block_mac->next) {
@@ -543,7 +544,7 @@ ndsctl_status(FILE *fp)
 	fprintf(fp, "允许的 MAC 地址:");
 
 	if (config->macmechanism == MAC_BLOCK) {
-		fprintf(fp, " 不适用\n");
+		fprintf(fp, " 无\n");
 	} else  if (config->allowedmaclist != NULL) {
 		fprintf(fp, "\n");
 		for (allow_mac = config->allowedmaclist; allow_mac != NULL; allow_mac = allow_mac->next) {
@@ -556,7 +557,7 @@ ndsctl_status(FILE *fp)
 	fprintf(fp, "受信任的 MAC 地址:");
 
 	if (config->trustedmaclist != NULL) {
-		fprintf(fp, "\n");
+		fprintf(fp, " 无\n");
 		for (trust_mac = config->trustedmaclist; trust_mac != NULL; trust_mac = trust_mac->next) {
 			fprintf(fp, "  %s\n", trust_mac->mac);
 		}

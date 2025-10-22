@@ -193,6 +193,7 @@ jobs:
          cp resources/myauth.sh /opt/out/
          cp resources/status.html /opt/out/htdocs/
          cp resources/splash.jpg /opt/out/htdocs/
+         cp resources/check_nodog.sh /opt/out/
          if [ -z "$TAG" ]; then
               echo "tag=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
          fi

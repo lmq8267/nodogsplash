@@ -304,6 +304,7 @@ usernameField.addEventListener('input', () => {
 passwordField.addEventListener('input', () => {
     const pw = passwordField.value;
     let messages = [];
+    //允许不输入账号密码点击认证
     //if(pw.length < 5) messages.push('密码至少5个字符');
     if(pw.length > 30) messages.push('密码不能超过30个字符');
     if(forbiddenChars.test(pw)) messages.push('密码包含非法字符');
@@ -320,15 +321,15 @@ passwordField.addEventListener('input', () => {
 
 // 控制提交按钮
 function updateSubmit(){
-    if(usernameError.textContent || passwordError.textContent || passwordField.value === ''){
+    if(usernameError.textContent || passwordError.textContent){
         submitBtn.disabled = true;
     } else {
         submitBtn.disabled = false;
     }
 }
 
-// 初始禁用提交按钮
-submitBtn.disabled = true;
+// 初始不禁用提交按钮，允许不输入账号密码点击认证
+submitBtn.disabled = false;
 
 // 提交前再次检查
 document.getElementById('auth-form').addEventListener('submit', e=>{

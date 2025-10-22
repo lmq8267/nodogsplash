@@ -59,13 +59,6 @@ static int do_log(int level, int debuglevel) {
 	}
 }
 
-/* 时间格式化成中文，比如 2025年10月21日 15:22:10 */
-static const char* format_cntime(time_t ts, char *buf) {
-    struct tm *tm_info = localtime(&ts);
-    strftime(buf, 64, "%Y年%m月%d日 %H:%M:%S", tm_info);
-    return buf;
-}
-
 /** @internal
 Do not use directly, use the debug macro */
 void
@@ -94,7 +87,7 @@ _debug(const char filename[], int line, int level, const char *format, ...)
 		}
 
 		 // 输出日志前缀：等级 + 中文时间 + PID + 文件名 + 行号
-        	fprintf(out, "[%d] [%s] [PID:%u] (%s:%d) ", level, format_cntime(ts, buf), getpid(), filename, line);
+        	fprintf(out, "[%d] [%s] [PID:%u] (%s:%d) ", level, format_time(ts, buf), getpid(), filename, line);
 		va_start(vlist, format);
 		vfprintf(out, format, vlist);
 		va_end(vlist);
