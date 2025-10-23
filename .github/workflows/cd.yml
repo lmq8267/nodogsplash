@@ -230,6 +230,7 @@ jobs:
 
     - name: 打包所有平台产物为统一的 Release
       run: |
+        TAG="${{ github.event.inputs.tag }}"
         if [ -z "$TAG" ]; then
               echo "tag=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
         fi
