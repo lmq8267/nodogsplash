@@ -306,7 +306,9 @@ _iptables_append_ruleset(const char table[], const char ruleset[], const char ch
 int
 iptables_block_mac(const char mac[])
 {
+	// 拉黑设备时删掉放行的命令
 	iptables_do_command("-t nat -D " CHAIN_OUTGOING " -m mac --mac-source %s -p tcp --dport 80 -j RETURN > /dev/null 2>&1", mac);
+	execute("ip6tables -D FORWARD -m mac --mac-source %s -j ACCEPT > /dev/null 2>&1", mac);
 	return iptables_do_command("-t mangle -A " CHAIN_BLOCKED " -m mac --mac-source %s -j MARK %s 0x%x", mac, markop, FW_MARK_BLOCKED);
 }
 
@@ -319,28 +321,36 @@ iptables_unblock_mac(const char mac[])
 int
 iptables_allow_mac(const char mac[])
 {
+	// 设置允许时 添加放行命令，设备可以访问ipv6互联网
 	iptables_do_command("-t nat -I " CHAIN_OUTGOING " -m mac --mac-source %s -p tcp --dport 80 -j RETURN", mac);
+	execute("ip6tables -I FORWARD -m mac --mac-source %s -j ACCEPT", mac);
 	return iptables_do_command("-t mangle -I " CHAIN_BLOCKED " -m mac --mac-source %s -j RETURN", mac);
 }
 
 int
 iptables_unallow_mac(const char mac[])
 {
+	// 取消允许时 删除放行命令，设备不可访问ipv6互联网
 	iptables_do_command("-t nat -D " CHAIN_OUTGOING " -m mac --mac-source %s -p tcp --dport 80 -j RETURN > /dev/null 2>&1", mac);
+	execute("ip6tables -D FORWARD -m mac --mac-source %s -j ACCEPT > /dev/null 2>&1", mac);
 	return iptables_do_command("-t mangle -D " CHAIN_BLOCKED " -m mac --mac-source %s -j RETURN", mac);
 }
 
 int
 iptables_trust_mac(const char mac[])
 {
+	// 信任设备时 添加放行命令，设备可以访问ipv6互联网
 	iptables_do_command("-t nat -I " CHAIN_OUTGOING " -m mac --mac-source %s -p tcp --dport 80 -j RETURN", mac);
+	execute("ip6tables -I FORWARD -m mac --mac-source %s -j ACCEPT", mac);
 	return iptables_do_command("-t mangle -A " CHAIN_TRUSTED " -m mac --mac-source %s -j MARK %s 0x%x", mac, markop, FW_MARK_TRUSTED);
 }
 
 int
 iptables_untrust_mac(const char mac[])
 {
+	// 取消信任时  删除放行命令，设备不可访问ipv6互联网
 	iptables_do_command("-t nat -D " CHAIN_OUTGOING " -m mac --mac-source %s -p tcp --dport 80 -j RETURN > /dev/null 2>&1", mac);
+	execute("ip6tables -D FORWARD -m mac --mac-source %s -j ACCEPT > /dev/null 2>&1", mac);
 	return iptables_do_command("-t mangle -D " CHAIN_TRUSTED " -m mac --mac-source %s -j MARK %s 0x%x", mac, markop, FW_MARK_TRUSTED);
 }
 
@@ -507,7 +517,8 @@ iptables_fw_init(void)
 		/*
 		 * nat PREROUTING chain
 		 */
-
+		// 禁止所有网关接口的ipv6数据转发，防止设备通过ipv6访问互联网服务
+		execute("ip6tables -I FORWARD -i %s -j DROP", gw_interface);
 		// packets coming in on gw_interface jump to CHAIN_OUTGOING
 		rc |= iptables_do_command("-t nat -I PREROUTING -i %s -s %s -j " CHAIN_OUTGOING, gw_interface, gw_iprange);
 		// CHAIN_OUTGOING, packets marked TRUSTED  ACCEPT
@@ -708,6 +719,9 @@ iptables_fw_destroy(void)
 	}
 
 	debug(LOG_DEBUG, "清除Nds的 iptables 条目");
+	
+	// 删除禁止网关接口的ipv6转发命令
+	execute("ip6tables -D FORWARD -i %s -j  DROP > /dev/null 2>&1", config->gw_interface);
 
 	/* Everything in the mangle table */
 	debug(LOG_DEBUG, "清除 MANGLE 表中的链");
@@ -847,6 +861,8 @@ iptables_fw_authenticate(t_client *client)
 	// 在 NAT 表中也添加 RETURN 规则,避免 DNAT  
 	//rc |= iptables_do_command("-t nat -I " CHAIN_OUTGOING " -s %s -m mac --mac-source %s -p tcp --dport 80 -j RETURN", client->ip, client->mac);
 	iptables_do_command("-t nat -I " CHAIN_OUTGOING " -m mac --mac-source %s -p tcp --dport 80 -j RETURN", client->mac);
+	// 通过认证的设备 添加放行命令，设备可以访问ipv6互联网
+	execute("ip6tables -I FORWARD -m mac --mac-source %s -j ACCEPT", client->mac);
 	rc |= iptables_do_command("-t mangle -A " CHAIN_INCOMING " -d %s -j MARK %s 0x%x", client->ip, markop, FW_MARK_AUTHENTICATED);
 	/* This rule is just for download (incoming) byte counting, see iptables_fw_counters_update() */
 	rc |= iptables_do_command("-t mangle -A " CHAIN_INCOMING " -d %s -j ACCEPT", client->ip);
@@ -886,6 +902,8 @@ iptables_fw_deauthenticate(t_client *client)
 	rc |= iptables_do_command("-t mangle -D " CHAIN_INCOMING " -d %s -j MARK %s 0x%x", client->ip, markop, FW_MARK_AUTHENTICATED);
 	rc |= iptables_do_command("-t mangle -D " CHAIN_INCOMING " -d %s -j ACCEPT", client->ip);
 	//rc |= iptables_do_command("-t nat -D " CHAIN_OUTGOING " -s %s -m mac --mac-source %s -p tcp --dport 80 -j RETURN", client->ip, client->mac);
+	// 取消认证的设备 删除放行命令，设备不可以访问ipv6互联网
+	execute("ip6tables -D FORWARD -m mac --mac-source %s -j ACCEPT > /dev/null 2>&1", client->mac);
 	iptables_do_command("-t nat -D " CHAIN_OUTGOING " -m mac --mac-source %s -p tcp --dport 80 -j RETURN", client->mac);
 
 	if (traffic_control) {
