@@ -49,13 +49,13 @@ jobs:
       matrix:
         include:
 
-        - target: aarch64-unknown-linux
+        - target: aarch64-linux
           URL: aarch64-linux-musl
         
         - target: armv7l-linux-eabihf
           URL: armv7l-linux-musleabihf
 
-        - target: armv7m-linux-eabi
+        - target: armv7l-linux-eabi
           URL: armv7m-linux-musleabi
           
         - target: arm-linux-eabihf
@@ -194,14 +194,7 @@ jobs:
          cp resources/status.html /opt/out/htdocs/
          cp resources/splash.jpg /opt/out/htdocs/
          cp resources/check_nodog.sh /opt/out/
-         if [ -z "$TAG" ]; then
-              echo "tag=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
-         fi
-         echo "haxi=$(git rev-parse HEAD)" >> $GITHUB_ENV
-         cd /opt/out
-         zip -r ../nodogsplash-$TARGET.zip ./*
-         echo "build_time=$(date '+%Y年%m月%d日%H:%M:%S' | jq -sRr @uri)" >> $GITHUB_ENV
-         
+
        #continue-on-error: true  
        
      - name: 安装 UPX
@@ -218,21 +211,56 @@ jobs:
        with:
         name: nodogsplash-${{ matrix.target }}
         path: /opt/out/*
-     - name: 发布Release
-       if: github.event.inputs.rel == 'true'
-       uses: softprops/action-gh-release@v2
-       with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          body: |
-           > ### ![](https://img.shields.io/badge/%E7%BC%96%E8%AF%91%E6%97%B6%E9%97%B4-${{ env.build_time }}-nodogsplash?logo=github&labelColor=%E9%A1%BB)![](https://img.shields.io/github/downloads/${{ github.repository }}/${{env.tag}}/total?label=%E4%B8%8B%E8%BD%BD%E6%AC%A1%E6%95%B0&logo=github)
-           
-           [提交记录](https://github.com/${{ github.repository }}/tree/${{ env.haxi }})
-           
-           [官方源码](https://github.com/nodogsplash/nodogsplash)
-           
-          tag_name: ${{env.tag}}
-          overwrite_files: true
-          files: /opt/nodogsplash-${{ matrix.target }}.zip
+        
+  release:
+   needs: build  # 等待所有平台 build 完成
+   runs-on: ubuntu-latest
+   steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        repository: ${{ github.repository }}
+        ref: ${{ env.branch }}
+    - uses: actions/download-artifact@v4
+      with:
+        path: artifacts
+
+    - name: 显示所有下载的产物
+      run: ls -R artifacts
+
+    - name: 打包所有平台产物为统一的 Release
+      run: |
+        if [ -z "$TAG" ]; then
+              echo "tag=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+        fi
+        echo "haxi=$(git rev-parse HEAD)" >> $GITHUB_ENV
+        
+        mkdir -p /opt/release
+        cd artifacts
+        for dir in */ ; do
+          target_name=$(basename "$dir")
+          cd "$dir"
+          zip -r "/opt/release/${target_name}.zip" ./*
+          cd ..
+        done
+        ls /opt/release
+        echo "build_time=$(date '+%Y年%m月%d日%H:%M:%S' | jq -sRr @uri)" >> $GITHUB_ENV
+
+    - name: 统一发布 Release
+      if: github.event.inputs.rel == 'true'
+      uses: softprops/action-gh-release@v2
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        tag_name: ${{ env.tag }}
+        body: |
+          > ### ![](https://img.shields.io/badge/%E7%BC%96%E8%AF%91%E6%97%B6%E9%97%B4-${{ env.build_time }}-nodogsplash?logo=github&labelColor=%E9%A1%BB)![](https://img.shields.io/github/downloads/${{ github.repository }}/${{env.tag}}/total?label=%E4%B8%8B%E8%BD%BD%E6%AC%A1%E6%95%B0&logo=github)
+         
+          [提交记录](https://github.com/${{ github.repository }}/tree/${{ env.haxi }})
+          
+          [官方源码](https://github.com/nodogsplash/nodogsplash)
+          
+        files: /opt/release/*.zip
+
 
   del:
     runs-on: ubuntu-latest
