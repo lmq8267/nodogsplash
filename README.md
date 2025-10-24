@@ -1,6 +1,6 @@
 ## Nodogsplash 项目
 
-### 为了在Padavan里能正常运行，主要修改如下：（从后往前介绍，图中代码里的 `//` 符号表示注释不会生效）
+### 为了在Padavan里能正常运行，基于官方[9b2bc7b](https://github.com/nodogsplash/nodogsplash/tree/9b2bc7be4a9111d0b27ec2783ca4b9e38d32c549)的提交时主要修改如下：（从后往前介绍，图中代码里的 `//` 符号表示注释不会生效）
 
 #   
 **1. 在 [src/fw_iptables.c](https://github.com/nodogsplash/nodogsplash/blob/9b2bc7be4a9111d0b27ec2783ca4b9e38d32c549/src/fw_iptables.c#L878) 的第878行后添加以下代码**
@@ -124,9 +124,11 @@
 #      
 **11. 如果你使用的是[Hiboy](https://opt.cn2qq.com/padavan/)的Padavan固件，需要额外修改 去掉端口复用，或出现无法启动 报错如下**    
 1.     
-<img width="1223" height="156" alt="image" src="https://github.com/user-attachments/assets/bf5e6eb2-adaa-4f60-9eed-fcc5fe4957b0" />
+<img width="1233" height="187" alt="image" src="https://github.com/user-attachments/assets/daf85ab9-43e7-4dea-8d30-beb950cb4f19" />
+
 2.     
-<img width="1160" height="108" alt="image" src="https://github.com/user-attachments/assets/a46ff5d5-922c-489f-8677-8ecb70e95544" />
+<img width="1158" height="108" alt="image" src="https://github.com/user-attachments/assets/207194ce-5a01-4283-9ede-7499c83f0258" />
+
 
 **这个需要修改 [src/main.c](https://github.com/nodogsplash/nodogsplash/blob/9b2bc7be4a9111d0b27ec2783ca4b9e38d32c549/src/main.c#L293) 的第293行添加双斜线`//`注释掉****  
 <img width="655" height="251" alt="image" src="https://github.com/user-attachments/assets/b2befcae-3923-4100-969f-ae2d7f358e89" />
