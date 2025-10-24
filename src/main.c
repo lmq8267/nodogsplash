@@ -318,7 +318,7 @@ main_loop(void)
 #ifdef WITH_STATE_FILE
 	result = state_file_import(config->statefile);
 	if (result < 0) {
-		debug(LOG_ERR, "无法解析状态文件【%s】，将无法恢复之前的客户端状态，重新生成");
+		debug(LOG_ERR, "无法解析状态文件【%s】，将无法恢复之前的客户端状态，重新生成", config->statefile);
 		debug(LOG_ERR, "重置客户端状态和防火墙状态");
 		iptables_fw_destroy();
 		if (iptables_fw_init() != 0) {
