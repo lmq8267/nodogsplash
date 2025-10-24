@@ -318,8 +318,8 @@ main_loop(void)
 #ifdef WITH_STATE_FILE
 	result = state_file_import(config->statefile);
 	if (result < 0) {
-		debug(LOG_ERR, "无法解析状态文件，将覆盖旧状态");
-		debug(LOG_ERR, "重置客户端和防火墙状态");
+		debug(LOG_ERR, "无法解析状态文件【%s】，将无法恢复之前的客户端状态，重新生成");
+		debug(LOG_ERR, "重置客户端状态和防火墙状态");
 		iptables_fw_destroy();
 		if (iptables_fw_init() != 0) {
 			debug(LOG_ERR, "初始化防火墙规则时出错！正在清理");
@@ -329,7 +329,7 @@ main_loop(void)
 		}
 		client_list_flush();
 	} else if (result > 0) {
-		debug(LOG_ERR, "无法打开状态文件进行读取，已忽略");
+		debug(LOG_ERR, "状态文件【%s】不存在或无法读取，已忽略", config->statefile);
 	}
 #endif
 
