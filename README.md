@@ -1,5 +1,11 @@
 ## Nodogsplash 项目
 
+### 管理界面UI：
+
+<img width="1891" height="667" alt="image" src="https://github.com/user-attachments/assets/6773364e-db95-4351-9350-5997ca33d89a" />
+
+<img width="1871" height="630" alt="image" src="https://github.com/user-attachments/assets/457ab9dd-6918-412b-9a72-51caf69c11fe" />
+
 ### 为了在Padavan里能正常运行，基于官方[9b2bc7b](https://github.com/nodogsplash/nodogsplash/tree/9b2bc7be4a9111d0b27ec2783ca4b9e38d32c549)的提交时主要修改如下：（从后往前介绍，图中代码里的 `//` 符号表示注释不会生效）
 
 #   
