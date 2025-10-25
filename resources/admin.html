@@ -35,6 +35,21 @@ h1 {
 }
 @keyframes pulse {0%{transform:scale(1);}50%{transform:scale(1.05);}100%{transform:scale(1);}}
 
+/* 统计标题行 */
+.header-flex {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* 右上角客户端统计数字 */
+.client-count {
+    font-size: 0.95rem;
+    color: #ffeb3b;
+    font-weight: bold;
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.4);
+}
+
 .info-section {
     background: rgba(255,255,255,0.05);
     padding: 15px;
@@ -91,7 +106,9 @@ input[type="text"], input[type="number"], input[type="password"] {
 
     <!-- 客户端列表 -->
     <div class="info-section">
-        <h3>客户端列表</h3>
+        <div class="header-flex">
+            <h3>客户端列表</h3>
+        </div>
         <div class="table-container">
             <table>
                 <thead>
@@ -111,7 +128,7 @@ input[type="text"], input[type="number"], input[type="password"] {
                 </thead>
                 <tbody id="clients-body"></tbody>
             </table>
-        </div>
+        </div><br><div class="client-count" id="client-count">共 0 个客户端</div>
     </div>
 
     <div class="copy-right">
@@ -159,7 +176,16 @@ function displayClients(data){
     tbody.innerHTML='';
     currentMACMechanism=data["macmechanism"]||'block';
     const clients=data["客户端信息"];
-    if(!clients||Object.keys(clients).length===0){ tbody.innerHTML='<tr><td colspan="10">没有客户端</td></tr>'; return; }
+    const countElem=document.getElementById('client-count');
+
+    if(!clients||Object.keys(clients).length===0){ 
+        tbody.innerHTML='<tr><td colspan="11">没有客户端</td></tr>'; 
+        countElem.textContent='共 0 个客户端';
+        return; 
+    }
+
+    const totalCount = Object.keys(clients).length;
+    countElem.textContent = `共 ${totalCount} 个客户端`;
 
     for(const mac in clients){
         const c=clients[mac];
@@ -213,4 +239,3 @@ function setDuration(client,id){
 </script>
 </body>
 </html>
-
