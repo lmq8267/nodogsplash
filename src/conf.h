@@ -29,7 +29,7 @@
 #ifndef _NDS_CONF_H_
 #define _NDS_CONF_H_
 
-#define VERSION "5.0.2"
+#define VERSION "5.0.3"
 
 /*@{*/
 /** Defines */
@@ -63,6 +63,10 @@
 #define DEFAULT_WEBROOT "/etc/storage/nodogsplash/htdocs"
 #define DEFAULT_SPLASHPAGE "login.html"
 #define DEFAULT_STATUSPAGE "status.html"
+#define DEFAULT_ADMINPAGE "admin.html"
+#define DEFAULT_ADMIN_TOKEN "NoDogSplash_Admin"
+#define DEFAULT_AUTO_AUTH_TIMEOUT 0
+#define DEFAULT_ADDRESS_REUSE 1
 #define DEFAULT_AUTHDIR "status"
 #define DEFAULT_DENYDIR "logout"
 #define DEFAULT_MACMECHANISM MAC_BLOCK
@@ -185,6 +189,10 @@ typedef struct {
 	char *binauth;			/**< @brief external authentication program */
 	char *preauth;			/**< @brief external preauthentication program */
 	char *statefile;		/**< @brief external preauthentication program */
+	char *admin_token;  // 管理员令牌
+	char *adminpage;  // 管理页面文件名 
+	int auto_auth_timeout;  // 首次连接免认证时长(分钟) 
+	int address_reuse; // 端口复用
 } s_config;
 
 /** @brief Get the current gateway configuration */

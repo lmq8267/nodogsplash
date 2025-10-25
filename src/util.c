@@ -80,6 +80,56 @@ extern unsigned int authenticated_since_start;
 extern int created_httpd_threads;
 extern int current_httpd_threads;
 
+/**  
+ * 通过 IP 地址获取主机名  
+ * 优先从 DHCP 租约文件读取,失败则尝试 DNS 反向查询  
+ */  
+char* get_hostname_by_ip(const char *ip) {  
+    char hostname[256] = {0};  
+    FILE *fp;  
+    char line[512];  
+    char *result = NULL;  
+      
+    // 方法1: 从 DHCP 租约文件读取  
+    fp = fopen("/tmp/dhcp.leases", "r");  
+    if (fp) {  
+        while (fgets(line, sizeof(line), fp)) {  
+            char lease_ip[64], lease_mac[32], lease_hostname[256];  
+            if (sscanf(line, "%*s %s %s %s", lease_mac, lease_ip, lease_hostname) == 3) {  
+                if (strcmp(lease_ip, ip) == 0 && strcmp(lease_hostname, "*") != 0) {  
+                    strncpy(hostname, lease_hostname, sizeof(hostname) - 1);  
+                    fclose(fp);  
+                      
+                    char *dot = strchr(hostname, '.');  
+                    if (dot) {  
+                        *dot = '\0'; 
+                    }  
+                      
+                    return safe_strdup(hostname);  
+                }  
+            }  
+        }  
+        fclose(fp);  
+    }  
+      
+    // 方法2: DNS 反向查询  
+    struct sockaddr_in sa;  
+    sa.sin_family = AF_INET;  
+    inet_pton(AF_INET, ip, &sa.sin_addr);  
+      
+    if (getnameinfo((struct sockaddr*)&sa, sizeof(sa), hostname, sizeof(hostname), NULL, 0, 0) == 0) {  
+        if (strcmp(hostname, ip) != 0) {  
+        
+            char *dot = strchr(hostname, '.');  
+            if (dot) {  
+                *dot = '\0'; 
+            }  
+            return safe_strdup(hostname);  
+        }  
+    }  
+      
+    return NULL;  
+}
 
 static int _execute_ret(char* msg, int msg_len, const char *cmd)
 {
@@ -629,6 +679,7 @@ ndsctl_json_client(FILE *fp, const t_client *client, time_t now)
 	fprintf(fp, "\"客户端ID\":%d,\n", client->id);
 	fprintf(fp, "\"IP地址\":\"%s\",\n", client->ip);
 	fprintf(fp, "\"MAC地址\":\"%s\",\n", client->mac);
+	fprintf(fp, "\"主机名\":\"%s\",\n", client->hostname ? client->hostname : "未知");
 	fprintf(fp, "\"加入时间\":%lld,\n", (long long) client->session_start);
 	fprintf(fp, "\"最后活跃时间\":%lld,\n", (long long) client->counters.last_updated);
 	if (client->session_start) {

@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nodogsplash 管理面板</title>
+<style>
+body, html {
+    margin: 0; padding: 0;
+    width: 100%; min-height: 100%;
+    font-family: "Microsoft YaHei", "SimHei", "Arial", sans-serif;
+    background: linear-gradient(135deg, #1e3c72, #2a5298);
+    color: #fff; overflow-y: auto;
+}
+
+.container {
+    background: rgba(255,255,255,0.05);
+    backdrop-filter: blur(10px);
+    border-radius: 20px;
+    padding: 20px;
+    margin: 20px auto;
+    max-width: 95%;
+    animation: fadeIn 1.2s ease-in-out;
+}
+@keyframes fadeIn { from {opacity:0; transform:translateY(-20px);} to {opacity:1; transform:translateY(0);} }
+
+h1 {
+    font-size:2rem; margin-bottom:20px;
+    color:#ffeb3b; text-align:center;
+    text-shadow:1px 1px 5px rgba(0,0,0,0.5);
+    animation:pulse 2s infinite;
+}
+@keyframes pulse {0%{transform:scale(1);}50%{transform:scale(1.05);}100%{transform:scale(1);}}
+
+.info-section {
+    background: rgba(255,255,255,0.05);
+    padding: 15px;
+    border-radius: 12px;
+    margin-top: 15px;
+    font-size: 0.9rem;
+}
+
+.table-container { overflow-x:auto; }
+table {
+    width:100%; border-collapse:collapse; border-radius:10px; overflow:hidden; min-width:800px;
+}
+th, td {
+    padding:8px; text-align:center; border-bottom:1px solid rgba(255,255,255,0.1); font-size:0.85rem;
+}
+th { background: rgba(255,255,255,0.1); color:#ffeb3b; }
+tr:nth-child(even) { background: rgba(255,255,255,0.02); }
+
+button {
+    margin:2px; padding:5px 10px; border:none; border-radius:6px;
+    cursor:pointer; font-size:0.8rem; font-weight:bold;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+button:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 3px 10px rgba(0,0,0,0.3); }
+.auth { background: linear-gradient(90deg,#4CAF50,#81C784); color:#fff; }
+.deauth { background: linear-gradient(90deg,#FF5722,#FF8A65); color:#fff; }
+.trust { background: linear-gradient(90deg,#2196F3,#64B5F6); color:#fff; }
+.cancel-btn { background: linear-gradient(90deg,#f44336,#e57373); color:#fff; }
+.block { background: linear-gradient(90deg,#ff9800,#FFB74D); color:#fff; }
+.refresh-btn { background: linear-gradient(90deg,#9C27B0,#BA68C8); color:#fff; }
+.duration-btn { background: linear-gradient(90deg,#00BCD4,#4DD0E1); color:#fff; }
+.allow-btn { background: linear-gradient(90deg,#8BC34A,#AED581); color:#fff; }
+
+button:disabled { opacity:0.5; cursor:not-allowed; background-color:#ccc; }
+
+input[type="text"], input[type="number"], input[type="password"] {
+    padding:6px; margin:3px 5px 3px 0; border-radius:6px; border:none; width:150px;
+}
+
+.copy-right { margin-top:20px; font-size:0.8rem; color:#ccc; text-align:center; }
+</style>
+</head>
+<body>
+<div class="container">
+    <h1>Nodogsplash 管理面板</h1>
+
+    <!-- 管理员令牌输入 -->
+    <div class="info-section">
+        <label>管理员令牌:</label>
+        <input type="password" id="admin_token" placeholder="输入管理员令牌" 
+            onfocus="this.type='text'" onblur="this.type='password'" onkeypress="checkEnter(event)">
+        <button class="refresh-btn" id="refresh-btn" onclick="loadClients()">刷新客户端列表</button>
+    </div>
+
+    <!-- 客户端列表 -->
+    <div class="info-section">
+        <h3>客户端列表</h3>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>主机名</th>
+                        <th>IP地址</th>
+                        <th>MAC地址</th>
+                        <th>状态</th>
+                        <th>已下载(KB)</th>
+                        <th>已上传(KB)</th>
+                        <th>会话时长</th>
+                        <th>上网到期时间</th>
+                        <th>操作</th>
+                        <th>设置上网时长</th>
+                    </tr>
+                </thead>
+                <tbody id="clients-body"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="copy-right">
+        版权所有 &copy; Nodogsplash 贡献者 2004-2025。<br>
+        本软件依据 GNU GPL 许可证发布。
+    </div>
+</div>
+
+<script>
+let currentMACMechanism='block';
+function getToken(){
+    return document.getElementById('admin_token').value || localStorage.getItem('admin_token') || '';
+}
+
+document.getElementById('admin_token').addEventListener('input', e => {
+    localStorage.setItem('admin_token', e.target.value);
+});
+
+// 回车触发刷新
+function checkEnter(e){
+    if(e.key==='Enter'){ document.getElementById('refresh-btn').click(); }
+}
+
+// 页面刷新时触发刷新按钮
+window.onload = function(){
+    const token = getToken();
+    if(token) document.getElementById('refresh-btn').click();
+};
+
+
+function loadClients(){
+    const token=getToken();
+    if(!token){ alert('请输入管理员令牌'); return; }
+    fetch('/admin/clients?admin_token=' + encodeURIComponent(token))
+        .then(res=>res.json())
+        .then(data=>{ displayClients(data); })
+        .catch(err=>{ alert('加载失败:'+err); });
+}
+
+function formatTime(ts){ if(!ts||ts==0)return'-'; return new Date(ts*1000).toLocaleString('zh-CN'); }
+function formatDuration(sec){ if(!sec||sec<=0)return'-'; const h=Math.floor(sec/3600), m=Math.floor((sec%3600)/60), s=sec%60; return `${h}时${m}分${s}秒`; }
+
+function displayClients(data){
+    const tbody=document.getElementById('clients-body');
+    tbody.innerHTML='';
+    currentMACMechanism=data["macmechanism"]||'block';
+    const clients=data["客户端信息"];
+    if(!clients||Object.keys(clients).length===0){ tbody.innerHTML='<tr><td colspan="10">没有客户端</td></tr>'; return; }
+
+    for(const mac in clients){
+        const c=clients[mac];
+        const row=tbody.insertRow();
+        row.insertCell(0).textContent=c["客户端ID"];
+        row.insertCell(1).textContent=c["主机名"] || "未知";
+        row.insertCell(2).textContent=c["IP地址"];
+        row.insertCell(3).textContent=c["MAC地址"];
+        row.insertCell(4).textContent=c["状态"];
+        row.insertCell(5).textContent=c["已下载"];
+        row.insertCell(6).textContent=c["已上传"];
+        row.insertCell(7).textContent=formatDuration(c["会话持续时间"]);
+        const expiry=row.insertCell(8);
+        expiry.textContent=(c["会话结束时间"]&&c["会话结束时间"]>0)?formatTime(c["会话结束时间"])+' (剩余:'+formatDuration(c["剩余时间"])+')':'无限制';
+
+        const actions=row.insertCell(9);
+        const isAuth=c["已认证"], isTrust=c["已信任"], isBlocked=c["已拉黑"], isAllowed=c["已允许"];
+        let btns='';
+        btns+=isAuth?`<button class="deauth" onclick="clientAction('deauth','${c["MAC地址"]}')">取消认证</button>`:`<button class="auth" onclick="clientAction('auth','${c["MAC地址"]}')">认证</button>`;
+        btns+=isTrust?`<button class="cancel-btn" onclick="clientAction('untrust','${c["MAC地址"]}')">取消信任</button>`:`<button class="trust" onclick="clientAction('trust','${c["MAC地址"]}')">信任</button>`;
+        if(currentMACMechanism==='allow'){
+            btns+=!isAllowed?`<button class="allow-btn" onclick="clientAction('allow','${c["MAC地址"]}')">允许</button>`:`<button class="cancel-btn" onclick="clientAction('unallow','${c["MAC地址"]}')">取消允许</button>`;
+        } else{ btns+=`<button disabled style="opacity:0.5;cursor:not-allowed;" title="您的配置文件中 MACmechanism 参数为 block 模式,不支持此操作">允许</button>`; }
+        btns+=isBlocked?`<button class="cancel-btn" onclick="clientAction('unblock','${c["MAC地址"]}')">取消拉黑</button>`:`<button class="block" onclick="clientAction('block','${c["MAC地址"]}')">拉黑</button>`;
+        actions.innerHTML=btns;
+
+        const dur=row.insertCell(10);
+        dur.innerHTML=`<input type="number" id="duration_${c["客户端ID"]}" placeholder="秒" style="width:80px">
+        <button class="duration-btn" onclick="setDuration('${c["MAC地址"]}',${c["客户端ID"]})">设置</button>`;
+    }
+}
+
+function clientAction(action, client){
+    if(action==='allow' && currentMACMechanism!=='allow'){ alert('您的配置文件中 MACmechanism 参数为 block 模式,不支持允许操作。\n请在配置文件中设置 MACmechanism allow 后重启服务。'); return; }
+    const token=getToken();
+    fetch(`/admin/${action}?admin_token=${encodeURIComponent(token)}&client=${encodeURIComponent(client)}`)
+        .then(res=>res.json())
+        .then(data=>{ if(data.success){alert('操作成功'); loadClients();} else{alert('错误:'+(data.error||'未知错误'));} })
+        .catch(err=>{alert('请求失败:'+err);});
+}
+
+function setDuration(client,id){
+    const val=document.getElementById('duration_'+id).value;
+    if(!val){ alert('请输入时长'); return; }
+    const token=getToken();
+    fetch(`/admin/set_duration?admin_token=${encodeURIComponent(token)}&client=${encodeURIComponent(client)}&duration=${val}`)
+        .then(res=>res.json())
+        .then(data=>{ if(data.success){alert('设置成功'); loadClients();} else{alert('错误:'+(data.error||'未知错误'));} })
+        .catch(err=>{alert('请求失败:'+err);});
+}
+</script>
+</body>
+</html>
+

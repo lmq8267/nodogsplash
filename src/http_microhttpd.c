@@ -53,7 +53,9 @@
 
 /* Max dynamic html page size HTMLMAXSIZE in bytes defined in common.h */
 
-
+int get_client_ip(char *ip, struct MHD_Connection *connection);
+int get_client_mac(char *mac, const char *ip);
+void fw_refresh_client_list(void);
 static t_client *add_client(const char mac[], const char ip[]);
 static int authenticated(struct MHD_Connection *connection, const char *url, t_client *client);
 static int preauthenticated(struct MHD_Connection *connection, const char *url, t_client *client);
@@ -72,6 +74,382 @@ static int is_splashpage(const char *host, const char *url);
 static const char *get_redirect_url(struct MHD_Connection *connection);
 static const char *lookup_mimetype(const char *filename);
 
+static int check_admin_auth(struct MHD_Connection *connection) {  
+    s_config *config = config_get_config();  
+    const char *token = MHD_lookup_connection_value(connection, MHD_GET_ARGUMENT_KIND, "admin_token");  
+    char ip[INET6_ADDRSTRLEN+1];  
+    char mac[18];  
+      
+    // 获取操作者的 IP 和 MAC  
+    if (get_client_ip(ip, connection) != 0) {  
+        strcpy(ip, "未知");  
+    }  
+      
+    if (get_client_mac(mac, ip) != 0) {  
+        strcpy(mac, "未知");  
+    }  
+      
+    if (!token) {  
+        // 记录令牌缺失的日志  
+        debug(LOG_WARNING, "管理操作认证失败 - 操作者【%s - %s】令牌为空", ip, mac);  
+        return 1;  // 令牌缺失  
+    }  
+      
+    if (!config->admin_token || strcmp(token, config->admin_token) != 0) {  
+        // 记录令牌错误的日志,包括使用的错误令牌  
+        debug(LOG_WARNING, "管理操作认证失败 - 操作者【%s - %s】使用的令牌:【%s】",   
+              ip, mac, token);  
+        return 2;  // 令牌错误  
+    }  
+      
+    // 记录认证成功的日志  
+    debug(LOG_INFO, "管理操作认证成功 - 操作者【%s - %s】", ip, mac);  
+    return 0;  // 验证成功  
+}
+
+static void log_admin_operation(struct MHD_Connection *connection, const char *operation, const char *target, int result) {  
+    char ip[INET6_ADDRSTRLEN+1];  
+    char mac[18];  
+    const char *result_str = result == 0 ? "成功" : "失败";
+    const char *op_cn; 
+    
+    // 根据 operation 的英文值映射成中文名称
+    if (strcmp(operation, "auth") == 0) {
+        op_cn = "认证";
+    } else if (strcmp(operation, "deauth") == 0) {
+        op_cn = "取消认证";
+    } else if (strcmp(operation, "trust") == 0) {
+        op_cn = "信任";
+    } else if (strcmp(operation, "untrust") == 0) {
+        op_cn = "取消信任";
+    } else if (strcmp(operation, "block") == 0) {
+        op_cn = "拉黑";
+    } else if (strcmp(operation, "unblock") == 0) {
+        op_cn = "取消拉黑";
+    } else if (strcmp(operation, "allow") == 0) {
+        op_cn = "允许";
+    } else if (strcmp(operation, "unallow") == 0) {
+        op_cn = "取消允许";
+    } else {
+        op_cn = operation;  // 如果没有匹配，保持原样
+    } 
+      
+    // 获取操作者的 IP  
+    if (get_client_ip(ip, connection) != 0) {  
+        strcpy(ip, "未知");  
+    }  
+      
+    // 获取操作者的 MAC  
+    if (get_client_mac(mac, ip) != 0) {  
+        strcpy(mac, "未知");  
+    }  
+      
+    // 记录日志  
+    debug(LOG_NOTICE, "管理操作 - 执行:【%s [%s]=>%s】操作者:【%s - %s】",   
+          op_cn, target ? target : "无", result_str, ip, mac);  
+}
+
+static int admin_get_clients(struct MHD_Connection *connection) {  
+    t_client *client;  
+    struct MHD_Response *response;  
+    char *json_str;  
+    int ret;  
+    int auth_result;
+    time_t now = time(NULL);  
+      
+    //log_admin_operation(connection, "刷新客户端列表", NULL, 0);
+    auth_result = check_admin_auth(connection);  
+    if (auth_result != 0) {  
+        const char *error_msg;  
+        if (auth_result == 1) {  
+            error_msg = "{\"success\":false,\"error\":\"管理员令牌为空\"}";  
+        } else {  
+            error_msg = "{\"success\":false,\"error\":\"管理员令牌错误\"}";  
+        }  
+        response = MHD_create_response_from_buffer(strlen(error_msg), (void*)error_msg, MHD_RESPMEM_PERSISTENT);  
+        MHD_add_response_header(response, "Content-Type", "application/json; charset=utf-8");  
+        ret = MHD_queue_response(connection, 403, response);  
+        MHD_destroy_response(response);  
+        return ret;  
+    }  
+      
+    // 更新流量计数和会话状态  
+    iptables_fw_counters_update();  
+    fw_refresh_client_list();  // 新增:检查到期时间并更新状态   
+      
+    LOCK_CLIENT_LIST();  
+      
+    // 构建 JSON 响应  
+    json_str = malloc(HTMLMAXSIZE);  
+    if (!json_str) {  
+        UNLOCK_CLIENT_LIST();  
+        return send_error(connection, 500);  
+    }  
+      
+    s_config *config = config_get_config();  
+      
+    // 在 JSON 开头添加配置信息  
+    int offset = snprintf(json_str, HTMLMAXSIZE,   
+        "{\"macmechanism\":\"%s\",\"客户端数量\":%d,\"客户端信息\":{",   
+        config->macmechanism == MAC_ALLOW ? "allow" : "block",  
+        get_client_list_length());  
+      
+    client = client_get_first_client();  
+    int first = 1;  
+      
+    while (client != NULL) {  
+        if (!first) {  
+            offset += snprintf(json_str + offset, HTMLMAXSIZE - offset, ",");  
+        }  
+        first = 0;  
+          
+        // 计算剩余时间  
+        long remaining = 0;  
+        if (client->session_end > 0) {  
+            remaining = client->session_end - now;  
+            if (remaining < 0) remaining = 0;  
+        }  
+          
+        // 判断各种状态  
+        int is_authenticated = (client->fw_connection_state == FW_MARK_AUTHENTICATED);  
+        int is_trusted = (client->fw_connection_state == FW_MARK_TRUSTED);  
+        int is_blocked = (client->fw_connection_state == FW_MARK_BLOCKED);  
+          
+        // 检查是否在允许列表中  
+        s_config *config = config_get_config();  
+        int is_allowed = 0;  
+        t_MAC *pa = config->allowedmaclist;  
+        while (pa != NULL) {  
+            if (strcmp(pa->mac, client->mac) == 0) {  
+                is_allowed = 1;  
+                break;  
+            }  
+            pa = pa->next;  
+        }  
+          
+        offset += snprintf(json_str + offset, HTMLMAXSIZE - offset,  
+            "\"%s\":{\"客户端ID\":%lu,\"主机名\":\"%s\",\"IP地址\":\"%s\",\"MAC地址\":\"%s\","  
+            "\"加入时间\":%lld,\"最后活跃时间\":%lld,\"会话持续时间\":%lld,"  
+            "\"token\":\"%s\",\"状态\":\"%s\",\"已下载\":%llu,\"已上传\":%llu,"  
+            "\"会话结束时间\":%lld,\"剩余时间\":%ld,"  
+            "\"已认证\":%d,\"已信任\":%d,\"已拉黑\":%d,\"已允许\":%d}",  
+            client->mac,  
+            client->id,
+            client->hostname ? client->hostname : "未知",  
+            client->ip,  
+            client->mac,  
+            (long long)client->session_start,  
+            (long long)client->counters.last_updated,  
+            (long long)(client->session_start ? now - client->session_start : 0),  
+            client->token ? client->token : "none",  
+            fw_connection_state_as_string(client->fw_connection_state),  
+            client->counters.incoming / 1000,  
+            client->counters.outgoing / 1000,  
+            (long long)client->session_end,  
+            remaining,  
+            is_authenticated,  
+            is_trusted,  
+            is_blocked,  
+            is_allowed  
+        );  
+          
+        client = client->next;  
+    }  
+      
+    offset += snprintf(json_str + offset, HTMLMAXSIZE - offset, "}}");  
+      
+    UNLOCK_CLIENT_LIST();  
+      
+    response = MHD_create_response_from_buffer(strlen(json_str), json_str, MHD_RESPMEM_MUST_FREE);  
+    MHD_add_response_header(response, "Content-Type", "application/json; charset=utf-8");  
+    ret = MHD_queue_response(connection, 200, response);  
+    MHD_destroy_response(response);  
+      
+    return ret;  
+}
+
+static int admin_client_action(struct MHD_Connection *connection, const char *action) {  
+    const char *identifier;  
+    t_client *client;  
+    int result = -1;  
+    struct MHD_Response *response;  
+    const char *resp_msg;  
+    int ret;
+    int auth_result;  
+      
+    auth_result = check_admin_auth(connection);  
+    if (auth_result != 0) {  
+        // 记录认证失败  
+        log_admin_operation(connection, action, identifier, -1);  
+          
+        const char *error_msg;  
+        if (auth_result == 1) {  
+            error_msg = "{\"success\":false,\"error\":\"管理员令牌缺失\"}";  
+        } else {  
+            error_msg = "{\"success\":false,\"error\":\"管理员令牌错误\"}";  
+        }  
+        response = MHD_create_response_from_buffer(strlen(error_msg), (void*)error_msg, MHD_RESPMEM_PERSISTENT);  
+        MHD_add_response_header(response, "Content-Type", "application/json; charset=utf-8");  
+        ret = MHD_queue_response(connection, 403, response);  
+        MHD_destroy_response(response);  
+        return ret;  
+    }  
+      
+    identifier = MHD_lookup_connection_value(connection, MHD_GET_ARGUMENT_KIND, "client");  
+    if (!identifier) {  
+        return send_error(connection, 400);  
+    }  
+      
+    LOCK_CLIENT_LIST();  
+    client = client_list_find_by_any(identifier, identifier, identifier);  
+      
+    if (!client) {  
+        UNLOCK_CLIENT_LIST();  
+        resp_msg = "{\"success\":false,\"error\":\"未找到此设备\"}";  
+        response = MHD_create_response_from_buffer(strlen(resp_msg), (void*)resp_msg, MHD_RESPMEM_PERSISTENT);  
+        MHD_add_response_header(response, "Content-Type", "application/json");  
+        ret = MHD_queue_response(connection, 404, response);  
+        MHD_destroy_response(response);  
+        return ret;  
+    }  
+      
+    if (strcmp(action, "auth") == 0) {  
+        result = auth_client_auth_nolock(client->id, "admin_auth");  
+    } else if (strcmp(action, "deauth") == 0) {  
+        unsigned long id = client->id;  
+        UNLOCK_CLIENT_LIST();  
+        result = auth_client_deauth(id, "admin_deauth");  
+        LOCK_CLIENT_LIST();  
+    } else if (strcmp(action, "trust") == 0) {  
+        UNLOCK_CLIENT_LIST();  
+        result = auth_client_trust(client->mac);  
+        LOCK_CLIENT_LIST();  
+    } else if (strcmp(action, "untrust") == 0) {  
+        UNLOCK_CLIENT_LIST();  
+        result = auth_client_untrust(client->mac);  
+        LOCK_CLIENT_LIST();  
+    } else if (strcmp(action, "block") == 0) {  
+        UNLOCK_CLIENT_LIST();  
+        result = auth_client_block(client->mac);  
+        LOCK_CLIENT_LIST();  
+    } else if (strcmp(action, "unblock") == 0) {  
+        UNLOCK_CLIENT_LIST();  
+        result = auth_client_unblock(client->mac);  
+        LOCK_CLIENT_LIST();  
+    } else if (strcmp(action, "allow") == 0) { 
+    	UNLOCK_CLIENT_LIST();  
+    	result = auth_client_allow(client->mac);  
+    	LOCK_CLIENT_LIST();  
+    } else if (strcmp(action, "unallow") == 0) { 
+    	UNLOCK_CLIENT_LIST();  
+    	result = auth_client_unallow(client->mac);  
+    	LOCK_CLIENT_LIST();  
+    }
+      
+    UNLOCK_CLIENT_LIST();
+    
+    // 记录操作日志  
+    char target_info[128];  
+    snprintf(target_info, sizeof(target_info), "%s - %s", client->ip, client->mac);  
+    log_admin_operation(connection, action, target_info, result);  
+      
+    if (result == 0) {  
+        resp_msg = "{\"success\":true}";  
+    } else {  
+        resp_msg = "{\"success\":false,\"error\":\"操作失败\"}";  
+    }  
+      
+    response = MHD_create_response_from_buffer(strlen(resp_msg), (void*)resp_msg, MHD_RESPMEM_PERSISTENT);  
+    MHD_add_response_header(response, "Content-Type", "application/json");  
+    ret = MHD_queue_response(connection, result == 0 ? 200 : 500, response);  
+    MHD_destroy_response(response);  
+      
+    return ret;  
+}
+
+static int admin_set_duration(struct MHD_Connection *connection) {  
+    const char *identifier;  
+    const char *duration_str;  
+    t_client *client;  
+    int duration;  
+    struct MHD_Response *response;  
+    const char *resp_msg;  
+    int ret;  
+    time_t now = time(NULL);  
+    int auth_result;  
+      
+    auth_result = check_admin_auth(connection);  
+    if (auth_result != 0) {  
+          
+        const char *error_msg;  
+        if (auth_result == 1) {  
+            error_msg = "{\"success\":false,\"error\":\"管理员令牌缺失\"}";  
+        } else {  
+            error_msg = "{\"success\":false,\"error\":\"管理员令牌错误\"}";  
+        }  
+        response = MHD_create_response_from_buffer(strlen(error_msg), (void*)error_msg, MHD_RESPMEM_PERSISTENT);  
+        MHD_add_response_header(response, "Content-Type", "application/json; charset=utf-8");  
+        ret = MHD_queue_response(connection, 403, response);  
+        MHD_destroy_response(response);  
+        return ret;  
+    } 
+      
+    identifier = MHD_lookup_connection_value(connection, MHD_GET_ARGUMENT_KIND, "client");  
+    duration_str = MHD_lookup_connection_value(connection, MHD_GET_ARGUMENT_KIND, "duration");  
+      
+    if (!identifier || !duration_str) {  
+        return send_error(connection, 400);  
+    }  
+      
+    duration = atoi(duration_str);  
+    if (duration < 0) {  
+        return send_error(connection, 400);  
+    }  
+      
+    LOCK_CLIENT_LIST();  
+    client = client_list_find_by_any(identifier, identifier, identifier);  
+      
+    if (!client) {  
+        UNLOCK_CLIENT_LIST();  
+        resp_msg = "{\"success\":false,\"error\":\"未找到此设备\"}";  
+        response = MHD_create_response_from_buffer(strlen(resp_msg), (void*)resp_msg, MHD_RESPMEM_PERSISTENT);  
+        MHD_add_response_header(response, "Content-Type", "application/json");  
+        ret = MHD_queue_response(connection, 404, response);  
+        MHD_destroy_response(response);  
+        return ret;  
+    }  
+      
+    if (duration > 0) {  
+        client->session_end = now + duration;  
+          
+        // 如果设置的时长已经到期,立即踢下线  
+        if (client->session_end <= now) {  
+            s_config *config = config_get_config();  
+            if (config->session_timeout_block > 0) {  
+                auth_change_state(client, FW_MARK_BLOCKED, "timeout_deauth_block");  
+            } else {  
+                auth_change_state(client, FW_MARK_PREAUTHENTICATED, "timeout_deauth");  
+            }  
+        }  
+    } else {  
+        client->session_end = 0;  
+    }  
+      
+    UNLOCK_CLIENT_LIST();
+    
+    // 记录操作日志  
+    char target_info[256];  
+    snprintf(target_info, sizeof(target_info), "%s - %s 时长:%d秒", client->mac, client->ip, duration);  
+    log_admin_operation(connection, "设置上网时长", target_info, 0);  
+      
+    resp_msg = "{\"success\":true}";  
+    response = MHD_create_response_from_buffer(strlen(resp_msg), (void*)resp_msg, MHD_RESPMEM_PERSISTENT);  
+    MHD_add_response_header(response, "Content-Type", "application/json");  
+    ret = MHD_queue_response(connection, 200, response);  
+    MHD_destroy_response(response);  
+      
+    return ret;  
+}
 
 /* Get client settings from binauth */
 static int do_binauth(struct MHD_Connection *connection, const char *binauth, t_client *client,
@@ -255,7 +633,7 @@ get_client_mac(char mac[18], const char req_ip[])
  * @param connection
  * @return ip address - must be freed by caller
  */
-static int
+int
 get_client_ip(char ip_addr[INET6_ADDRSTRLEN], struct MHD_Connection *connection)
 {
 	const union MHD_ConnectionInfo *connection_info;
@@ -333,7 +711,54 @@ libmicrohttpd_cb(void *cls,
 	 * b) serve direct
 	 * should all requests redirected? even those to .css, .js, ... or respond with 404/503/...
 	 */
+	if (strncmp(url, "/admin/clients", 14) == 0) {  
+    		return admin_get_clients(connection);  
+	}  
+  
+	if (strncmp(url, "/admin/auth", 11) == 0) {  
+    		return admin_client_action(connection, "auth");  
+	}  
+  
+	if (strncmp(url, "/admin/deauth", 13) == 0) {  
+    		return admin_client_action(connection, "deauth");  
+	}  
+  
+	if (strncmp(url, "/admin/trust", 12) == 0) {  
+    		return admin_client_action(connection, "trust");  
+	}  
+  
+	if (strncmp(url, "/admin/untrust", 14) == 0) {  
+    		return admin_client_action(connection, "untrust");  
+	}  
 
+	if (strncmp(url, "/admin/allow", 12) == 0) {  
+    		return admin_client_action(connection, "allow");  
+	}  
+  
+	if (strncmp(url, "/admin/unallow", 14) == 0) {  
+    		return admin_client_action(connection, "unallow");  
+	}
+  
+	if (strncmp(url, "/admin/block", 12) == 0) {  
+    		return admin_client_action(connection, "block");  
+	}
+
+	if (strncmp(url, "/admin/unblock", 14) == 0) {  
+    		return admin_client_action(connection, "unblock");  
+	}  
+  
+	if (strncmp(url, "/admin/set_duration", 19) == 0) {  
+    		return admin_set_duration(connection);  
+	}  
+  
+	s_config *config = config_get_config();  
+	char admin_url[PATH_MAX];  
+	snprintf(admin_url, PATH_MAX, "/%s", config->adminpage);  
+  
+	if (strcmp(url, admin_url) == 0 || strcmp(url, "/admin") == 0) {  
+    		return serve_file(connection, NULL, config->adminpage);  
+	}
+	
 	rc = get_client_ip(ip, connection);
 	if (rc != 0) {
 		return send_error(connection, 503);
@@ -1077,3 +1502,4 @@ static int serve_file(struct MHD_Connection *connection, t_client *client, const
 
 	return ret;
 }
+

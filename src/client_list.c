@@ -41,7 +41,7 @@
 #include "fw_iptables.h"
 #include "util.h"
 
-
+char *get_hostname_by_ip(const char *ip);
 /** Client counter */
 static int client_count = 0;
 static int client_id = 1;
@@ -137,9 +137,11 @@ _client_list_append(const char mac[], const char ip[])
 
 	client = safe_malloc(sizeof(t_client));
 	memset(client, 0, sizeof(t_client));
+	client->auto_authenticated = 0;
 
 	client->mac = safe_strdup(mac);
 	client->ip = safe_strdup(ip);
+	client->hostname = get_hostname_by_ip(ip);
 
 	// Reset volatile fields
 	client_reset(client);
@@ -152,6 +154,21 @@ _client_list_append(const char mac[], const char ip[])
 		client->fw_connection_state = FW_MARK_TRUSTED;
 	} else {
 		client->fw_connection_state = FW_MARK_PREAUTHENTICATED;
+	}
+	
+	// 自动认证逻辑 - 只对预认证状态的设备生效  
+	if (config->auto_auth_timeout > 0   
+    		&& !client->auto_authenticated   
+    		&& client->fw_connection_state == FW_MARK_PREAUTHENTICATED) {  // 关键:只对预认证状态生效  
+      
+    		client->auto_authenticated = 1;  
+    		client->fw_connection_state = FW_MARK_AUTHENTICATED;  
+    		client->session_start = time(NULL);  
+    		client->session_end = time(NULL) + (60 * config->auto_auth_timeout);  
+      
+    		iptables_fw_authenticate(client);
+    		debug(LOG_NOTICE, "客户端【%s - %s】新用户首次连接,已享受免认证 %d 分钟上网时长体验",   
+          		client->ip, client->mac, config->auto_auth_timeout);  
 	}
 
 	client->id = client_id;
@@ -383,7 +400,9 @@ client_list_delete(t_client *client)
 	t_client *ptr;
 
 	ptr = firstclient;
-
+	if (client->hostname) {  
+        	free(client->hostname);  
+    	}
 	if (ptr == NULL) {
 		debug(LOG_ERR, "节点列表为空！");
 	} else if (ptr == client) {

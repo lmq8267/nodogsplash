@@ -139,7 +139,7 @@ int auth_change_state(t_client *client, const unsigned int new_state, const char
  *  refresh their traffic counters,
  *  remove and deny them if timed out
  */
-static void
+void
 fw_refresh_client_list(void)
 {
 	t_client *cp1, *cp2;
@@ -286,6 +286,19 @@ auth_client_auth_nolock(const unsigned id, const char *reason)
 	}
 
 	rc = auth_change_state(client, FW_MARK_AUTHENTICATED, reason);
+	
+	// 新增: 设置会话时长
+	s_config *config = config_get_config(); 
+    	time_t now = time(NULL);  
+    	if (rc == 0 && config->session_timeout > 0) {  
+        	int seconds = 60 * config->session_timeout;  
+        	client->session_start = now;  
+        	client->session_end = now + seconds;  
+    	} else if (rc == 0) {  
+        	client->session_start = now;  
+        	client->session_end = 0;  // 无限制  
+    	}
+    
 	if (rc == 0) {
 		authenticated_since_start++;
 	}
@@ -305,115 +318,182 @@ auth_client_auth(const unsigned id, const char *reason)
 	return rc;
 }
 
-int
-auth_client_trust(const char *mac)
-{
-	int rc = -1;
-
-	LOCK_CONFIG();
-
-	if (!add_to_trusted_mac_list(mac) && !iptables_trust_mac(mac)) {
-		rc = 0;
-	}
-
-	UNLOCK_CONFIG();
-
-	return rc;
+int  
+auth_client_trust(const char *mac)  
+{  
+    int rc = -1;  
+  
+    LOCK_CONFIG();  
+  
+    if (!add_to_trusted_mac_list(mac) && !iptables_trust_mac(mac)) {  
+        rc = 0;  
+    }  
+  
+    UNLOCK_CONFIG();  
+  
+    // 新增: 更新已存在客户端的状态  
+    if (rc == 0) {  
+        LOCK_CLIENT_LIST();  
+        t_client *client = client_list_find_by_mac(mac);  
+        if (client && client->fw_connection_state != FW_MARK_TRUSTED) {  
+            // 先取消认证,再设置为信任状态  
+            if (client->fw_connection_state == FW_MARK_AUTHENTICATED) {  
+                iptables_fw_deauthenticate(client);  
+            }  
+            client->fw_connection_state = FW_MARK_TRUSTED;  
+        }  
+        UNLOCK_CLIENT_LIST();  
+    }  
+  
+    return rc;  
 }
 
-int
-auth_client_untrust(const char *mac)
-{
-	int rc = -1;
-
-	LOCK_CONFIG();
-
-	if (!remove_from_trusted_mac_list(mac) && !iptables_untrust_mac(mac)) {
-		rc = 0;
-	}
-
-	UNLOCK_CONFIG();
-
-/*
-	if (rc == 0) {
-		LOCK_CLIENT_LIST();
-		t_client * client = client_list_find_by_mac(mac);
-		if (client) {
-			rc = auth_change_state(client, FW_MARK_PREAUTHENTICATED, "manual_untrust");
-			if (rc == 0) {
-				client->session_start = 0;
-				client->session_end = 0;
-			}
-		}
-		UNLOCK_CLIENT_LIST();
-	}
-*/
-
-	return rc;
+int  
+auth_client_untrust(const char *mac)  
+{  
+    int rc = -1;  
+  
+    LOCK_CONFIG();  
+  
+    if (!remove_from_trusted_mac_list(mac) && !iptables_untrust_mac(mac)) {  
+        rc = 0;  
+    }  
+  
+    UNLOCK_CONFIG();  
+  
+    // 启用之前被注释的代码,并修复状态转换逻辑  
+    if (rc == 0) {  
+        LOCK_CLIENT_LIST();  
+        t_client *client = client_list_find_by_mac(mac);  
+        if (client && client->fw_connection_state == FW_MARK_TRUSTED) {  
+            // 直接设置为预认证状态  
+            client->fw_connection_state = FW_MARK_PREAUTHENTICATED;  
+            client->session_start = 0;  
+            client->session_end = 0;  
+        }  
+        UNLOCK_CLIENT_LIST();  
+    }  
+  
+    return rc;  
 }
 
-int
-auth_client_allow(const char *mac)
-{
-	int rc = -1;
-
-	LOCK_CONFIG();
-
-	if (!add_to_allowed_mac_list(mac) && !iptables_allow_mac(mac)) {
-		rc = 0;
-	}
-
-	UNLOCK_CONFIG();
-
-	return rc;
+int  
+auth_client_allow(const char *mac)  
+{  
+    int rc = -1;  
+  
+    LOCK_CONFIG();  
+  
+    if (!add_to_allowed_mac_list(mac) && !iptables_allow_mac(mac)) {  
+        rc = 0;  
+    }  
+  
+    UNLOCK_CONFIG();  
+  
+    // 新增: 更新已存在客户端的状态  
+    if (rc == 0) {  
+        LOCK_CLIENT_LIST();  
+        t_client *client = client_list_find_by_mac(mac);  
+        if (client && client->fw_connection_state != FW_MARK_TRUSTED) {  
+            // 先取消认证,再设置为信任状态(允许等同于信任)  
+            if (client->fw_connection_state == FW_MARK_AUTHENTICATED) {  
+                iptables_fw_deauthenticate(client);  
+            }  
+            client->fw_connection_state = FW_MARK_TRUSTED;  
+        }  
+        UNLOCK_CLIENT_LIST();  
+    }  
+  
+    return rc;  
+}  
+  
+int  
+auth_client_unallow(const char *mac)  
+{  
+    int rc = -1;  
+  
+    LOCK_CONFIG();  
+  
+    if (!remove_from_allowed_mac_list(mac) && !iptables_unallow_mac(mac)) {  
+        rc = 0;  
+    }  
+  
+    UNLOCK_CONFIG();  
+  
+    // 新增: 更新客户端状态  
+    if (rc == 0) {  
+        LOCK_CLIENT_LIST();  
+        t_client *client = client_list_find_by_mac(mac);  
+        if (client && client->fw_connection_state == FW_MARK_TRUSTED) {  
+            // 检查是否在信任列表中  
+            if (!is_trusted_mac(mac)) {  
+                // 如果不在信任列表,则改为预认证状态  
+                client->fw_connection_state = FW_MARK_PREAUTHENTICATED;  
+                client->session_start = 0;  
+                client->session_end = 0;  
+            }  
+        }  
+        UNLOCK_CLIENT_LIST();  
+    }  
+  
+    return rc;  
 }
 
-int
-auth_client_unallow(const char *mac)
-{
-	int rc = -1;
-
-	LOCK_CONFIG();
-
-	if (!remove_from_allowed_mac_list(mac) && !iptables_unallow_mac(mac)) {
-		rc = 0;
-	}
-
-	UNLOCK_CONFIG();
-
-	return rc;
-}
-
-int
-auth_client_block(const char *mac)
-{
-	int rc = -1;
-
-	LOCK_CONFIG();
-
-	if (!add_to_blocked_mac_list(mac) && !iptables_block_mac(mac)) {
-		rc = 0;
-	}
-
-	UNLOCK_CONFIG();
-
-	return rc;
-}
-
-int
-auth_client_unblock(const char *mac)
-{
-	int rc = -1;
-
-	LOCK_CONFIG();
-
-	if (!remove_from_blocked_mac_list(mac) && !iptables_unblock_mac(mac)) {
-		rc = 0;
-	}
-
-	UNLOCK_CONFIG();
-
-	return rc;
+int  
+auth_client_block(const char *mac)  
+{  
+    int rc = -1;  
+  
+    LOCK_CONFIG();  
+  
+    if (!add_to_blocked_mac_list(mac) && !iptables_block_mac(mac)) {  
+        rc = 0;  
+    }  
+  
+    UNLOCK_CONFIG();  
+  
+    // 新增: 更新客户端状态并踢下线  
+    if (rc == 0) {  
+        LOCK_CLIENT_LIST();  
+        t_client *client = client_list_find_by_mac(mac);  
+        if (client) {  
+            // 如果是已认证或信任状态,先取消认证  
+            if (client->fw_connection_state == FW_MARK_AUTHENTICATED ||  
+                client->fw_connection_state == FW_MARK_TRUSTED) {  
+                iptables_fw_deauthenticate(client);  
+            }  
+            client->fw_connection_state = FW_MARK_BLOCKED;  
+        }  
+        UNLOCK_CLIENT_LIST();  
+    }  
+  
+    return rc;  
+}  
+  
+int  
+auth_client_unblock(const char *mac)  
+{  
+    int rc = -1;  
+  
+    LOCK_CONFIG();  
+  
+    if (!remove_from_blocked_mac_list(mac) && !iptables_unblock_mac(mac)) {  
+        rc = 0;  
+    }  
+  
+    UNLOCK_CONFIG();  
+  
+    // 新增: 更新客户端状态  
+    if (rc == 0) {  
+        LOCK_CLIENT_LIST();  
+        t_client *client = client_list_find_by_mac(mac);  
+        if (client && client->fw_connection_state == FW_MARK_BLOCKED) {  
+            client->fw_connection_state = FW_MARK_PREAUTHENTICATED;  
+        }  
+        UNLOCK_CLIENT_LIST();  
+    }  
+  
+    return rc;  
 }
 
 void

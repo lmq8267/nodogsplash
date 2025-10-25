@@ -79,6 +79,7 @@ typedef enum {
 	oWebRoot,
 	oSplashPage,
 	oStatusPage,
+	oAdminPage,
 	oRedirectURL,
 	oPreauthIdleTimeout,
 	oAuthIdleTimeout,
@@ -104,6 +105,9 @@ typedef enum {
 	oBinAuth,
 	oPreAuth,
 	oStateFile,
+	oAdminToken,
+	oAutoAuthTimeout,
+	oAddressReuse,
 } OpCodes;
 
 /** @internal
@@ -155,6 +159,10 @@ static const struct {
 	{ "binauth", oBinAuth },
 	{ "preauth", oPreAuth },
 	{ "statefile", oStateFile },
+	{"AdminToken", oAdminToken},
+	{"adminpage", oAdminPage},
+	{ "autoauthtimeout", oAutoAuthTimeout },
+	{ "addressreuse", oAddressReuse },
 	{ NULL, oBadOption },
 };
 
@@ -203,6 +211,7 @@ config_init(void)
 	config.webroot = safe_strdup(DEFAULT_WEBROOT);
 	config.splashpage = safe_strdup(DEFAULT_SPLASHPAGE);
 	config.statuspage = safe_strdup(DEFAULT_STATUSPAGE);
+	config.adminpage = safe_strdup(DEFAULT_ADMINPAGE);
 	config.authdir = safe_strdup(DEFAULT_AUTHDIR);
 	config.denydir = safe_strdup(DEFAULT_DENYDIR);
 	config.redirectURL = NULL;
@@ -232,6 +241,9 @@ config_init(void)
 	config.binauth = NULL;
 	config.preauth = NULL;
 	config.statefile = safe_strdup(DEFAULT_STATE_FILE);
+	config.admin_token = safe_strdup(DEFAULT_ADMIN_TOKEN);
+	config.auto_auth_timeout = DEFAULT_AUTO_AUTH_TIMEOUT;
+	config.address_reuse = DEFAULT_ADDRESS_REUSE;
 
 	/* Set up default FirewallRuleSets, and their empty ruleset policies */
 	rs = add_ruleset("trusted-users");
@@ -743,6 +755,24 @@ config_read(const char *filename)
 				debug(LOG_WARNING, "日志详细级别无效。请设置为最高级别");
 			}
 			break;
+		case oAdminToken:  
+    			config.admin_token = safe_strdup(p1);  
+    			break;
+    		case oAdminPage:  
+    			config.adminpage = safe_strdup(p1);  
+    			break;
+    		case oAutoAuthTimeout:  
+    			if (sscanf(p1, "%d", &config.auto_auth_timeout) < 1 || config.auto_auth_timeout < 0) {  
+        			debug(LOG_ERR, "在 %s 中的第 %d 行选项 %s 的参数【%s】出现错误", filename, linenum, s, p1);  
+        				debug(LOG_ERR, "退出...");  
+        			exit(1);  
+    			}  
+    			break;
+    		case oAddressReuse:  
+    			if ((value = parse_boolean(p1)) != -1) {  
+        			config.address_reuse = value;  
+    			}  
+    			break;
 		case oMaxClients:
 			if (sscanf(p1, "%d", &config.maxclients) < 1 || config.maxclients < 1) {
 				debug(LOG_ERR, "在 %s 中的第 %d 行选项 %s 的参数【%s】出现错误", filename, linenum, s, p1);

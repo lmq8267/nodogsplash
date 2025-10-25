@@ -190,6 +190,7 @@ jobs:
          mv -f ./ndsctl /opt/out/ndsctl
          cp ./resources/nodogsplash.conf /opt/out/
          cp ./resources/login.html /opt/out/htdocs/
+         cp ./resources/admin.html /opt/out/htdocs/
          cp resources/myauth.sh /opt/out/
          cp resources/status.html /opt/out/htdocs/
          cp resources/splash.jpg /opt/out/htdocs/

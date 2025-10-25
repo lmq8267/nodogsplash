@@ -284,16 +284,35 @@ main_loop(void)
 	debug(LOG_NOTICE, "检测到网关IP地址 【%s】 接口名称 【%s】 MAC地址 【%s】", config->gw_ip, config->gw_interface, config->gw_mac);
 
 	/* Initializes the web server */
-	if ((webserver = MHD_start_daemon(
-						MHD_USE_EPOLL_INTERNALLY | MHD_USE_TCP_FASTOPEN,
-						config->gw_port,
-						NULL, NULL,
-						libmicrohttpd_cb, NULL,
-						MHD_OPTION_CONNECTION_TIMEOUT, (unsigned int) 120,
-						MHD_OPTION_LISTENING_ADDRESS_REUSE, 1,
-						MHD_OPTION_END)) == NULL) {
-		debug(LOG_ERR, "无法创建 Web 认证服务器: 【%s】", strerror(errno));
-		exit(1);
+	// 定义 MHD 启动参数数组，最后以 MHD_OPTION_END 结束
+	struct MHD_Daemon *webserver;  
+  
+	if (config->address_reuse) {  
+    		//debug(LOG_NOTICE, "Web 认证服务器启用端口复用");  
+    		webserver = MHD_start_daemon(  
+        		MHD_USE_EPOLL_INTERNALLY | MHD_USE_TCP_FASTOPEN,  
+        		config->gw_port,  
+        		NULL, NULL,  
+        		libmicrohttpd_cb, NULL,  
+        		MHD_OPTION_CONNECTION_TIMEOUT, (unsigned int)120,  
+        		MHD_OPTION_LISTENING_ADDRESS_REUSE, 1,  
+        		MHD_OPTION_END  
+    		);  
+	} else {  
+    		debug(LOG_NOTICE, "Web 认证服务器未启用端口复用");  
+    		webserver = MHD_start_daemon(  
+        		MHD_USE_EPOLL_INTERNALLY | MHD_USE_TCP_FASTOPEN,  
+        		config->gw_port,  
+        		NULL, NULL,  
+        		libmicrohttpd_cb, NULL,  
+        		MHD_OPTION_CONNECTION_TIMEOUT, (unsigned int)120,  
+        		MHD_OPTION_END  
+    		);  
+	}  
+
+	if (webserver == NULL) {
+    		debug(LOG_ERR, "无法创建 Web 认证服务器: 【%s】", strerror(errno));
+    		exit(1);
 	}
 
 	/* TODO: set listening socket */

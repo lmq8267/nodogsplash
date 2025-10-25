@@ -53,6 +53,7 @@ usage(void)
 		"  -d <等级>   日志详细级别 (%d-%d)\n"
 		"  -s          日志记录到系统日志\n"
 		"  -w <路径>   Ndsctl 套接字路径\n"
+		"  -a          禁用端口复用\n"
 		"  -h          打印此帮助信息\n"
 		"  -v          打印版本号\n"
 		"\n", DEBUGLEVEL_MIN, DEBUGLEVEL_MAX
@@ -67,7 +68,7 @@ void parse_commandline(int argc, char **argv)
 
 	s_config *config = config_get_config();
 
-	while (-1 != (c = getopt(argc, argv, "c:hfd:sw:vi:r:64"))) {
+	while (-1 != (c = getopt(argc, argv, "c:hfd:sw:vi:r:64a"))) {
 
 		switch(c) {
 
@@ -125,7 +126,9 @@ void parse_commandline(int argc, char **argv)
 			exit(1);
 			config->ip6 = 1;
 			break;
-
+		case 'a':  
+    			config->address_reuse = 0;  // 禁用端口复用  
+    			break;
 		default:
 			usage();
 			exit(1);
