@@ -108,6 +108,7 @@ input[type="text"], input[type="number"], input[type="password"] {
     <div class="info-section">
         <div class="header-flex">
             <h3>客户端列表</h3>
+                <div class="client-count" id="client-count">共 0 个客户端</div>
         </div>
         <div class="table-container">
             <table>
@@ -128,7 +129,7 @@ input[type="text"], input[type="number"], input[type="password"] {
                 </thead>
                 <tbody id="clients-body"></tbody>
             </table>
-        </div><br><div class="client-count" id="client-count">共 0 个客户端</div>
+        </div>
     </div>
 
     <div class="copy-right">
@@ -153,11 +154,25 @@ function checkEnter(e){
 }
 
 // 页面刷新时触发刷新按钮
-window.onload = function(){
-    const token = getToken();
-    if(token) document.getElementById('refresh-btn').click();
-};
+window.onload = function() {
+    // 定义一个函数，用来检查 token 并执行点击
+    function autoClickRefresh() {
+        const token = getToken();
+        // 如果 token 存在，就模拟点击刷新按钮
+        if (token) {
+            console.log("检测到 token，自动执行刷新按钮点击"); 
+            document.getElementById('refresh-btn').click();
+        } else {
+            console.log("未检测到 token，不执行刷新");
+        }
+    }
 
+    // 页面加载后立即执行一次
+    autoClickRefresh();
+
+    // 每隔 10 秒自动执行一次（10000 毫秒 = 10 秒）
+    setInterval(autoClickRefresh, 10000);
+};
 
 function loadClients(){
     const token=getToken();
