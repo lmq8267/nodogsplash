@@ -170,8 +170,8 @@ window.onload = function() {
     // 页面加载后立即执行一次
     autoClickRefresh();
 
-    // 每隔 10 秒自动执行一次（10000 毫秒 = 10 秒）
-    setInterval(autoClickRefresh, 10000);
+    // 每隔 5 秒自动执行一次（5000 毫秒 = 5 秒）
+    setInterval(autoClickRefresh, 5000);
 };
 
 function loadClients(){
@@ -213,11 +213,16 @@ function displayClients(data){
         row.insertCell(5).textContent=c["已下载"];
         row.insertCell(6).textContent=c["已上传"];
         row.insertCell(7).textContent=formatDuration(c["会话持续时间"]);
+        const isAuth=c["已认证"], isTrust=c["已信任"], isBlocked=c["已拉黑"], isAllowed=c["已允许"];
         const expiry=row.insertCell(8);
-        expiry.textContent=(c["会话结束时间"]&&c["会话结束时间"]>0)?formatTime(c["会话结束时间"])+' (剩余:'+formatDuration(c["剩余时间"])+')':'无限制';
+        // 只对已认证状态显示到期时间  
+        if(isAuth && c["会话结束时间"] && c["会话结束时间"]>0) {  
+            expiry.textContent = formatTime(c["会话结束时间"]) + ' (剩余:' + formatDuration(c["剩余时间"]) + ')';  
+        } else {  
+            expiry.textContent = '无限制';  
+        }
 
         const actions=row.insertCell(9);
-        const isAuth=c["已认证"], isTrust=c["已信任"], isBlocked=c["已拉黑"], isAllowed=c["已允许"];
         let btns='';
         btns+=isAuth?`<button class="deauth" onclick="clientAction('deauth','${c["MAC地址"]}')">取消认证</button>`:`<button class="auth" onclick="clientAction('auth','${c["MAC地址"]}')">认证</button>`;
         btns+=isTrust?`<button class="cancel-btn" onclick="clientAction('untrust','${c["MAC地址"]}')">取消信任</button>`:`<button class="trust" onclick="clientAction('trust','${c["MAC地址"]}')">信任</button>`;

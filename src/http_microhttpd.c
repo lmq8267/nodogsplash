@@ -418,7 +418,17 @@ static int admin_set_duration(struct MHD_Connection *connection) {
         MHD_destroy_response(response);  
         return ret;  
     }  
-      
+    
+    if (client->fw_connection_state != FW_MARK_AUTHENTICATED) {  
+    	UNLOCK_CLIENT_LIST();  
+    	resp_msg = "{\"success\":false,\"error\":\"只能对已认证客户端设置上网时长\"}";  
+    	response = MHD_create_response_from_buffer(strlen(resp_msg), (void*)resp_msg, MHD_RESPMEM_PERSISTENT);  
+    	MHD_add_response_header(response, "Content-Type", "application/json");  
+    	ret = MHD_queue_response(connection, 400, response);  
+    	MHD_destroy_response(response);  
+    	return ret;  
+    }
+  
     if (duration > 0) {  
         client->session_end = now + duration;  
           

@@ -167,7 +167,7 @@ fw_refresh_client_list(void)
 		unsigned int conn_state = cp1->fw_connection_state;
 		time_t last_updated = cp1->counters.last_updated;
 
-		if (cp1->session_end > 0 && cp1->session_end <= now) {
+		if (cp1->session_end > 0 && cp1->session_end <= now && conn_state == FW_MARK_AUTHENTICATED) {
 			/* Session ended (only > 0 for FW_MARK_AUTHENTICATED by binauth) */
 			debug(LOG_NOTICE, "强制踢出用户：【 %s】【%s】, 已连接：【%ds】, 上传：【%llukB】, 下载：【%llukB】",
 				cp1->ip, cp1->mac, now - cp1->session_end,
