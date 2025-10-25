@@ -322,7 +322,7 @@ int
 iptables_allow_mac(const char mac[])
 {
 	// 设置允许时 添加放行命令，设备可以访问ipv6互联网
-	iptables_do_command("-t nat -I " CHAIN_OUTGOING " -m mac --mac-source %s -p tcp --dport 80 -j RETURN", mac);
+	iptables_do_command("-t nat -I " CHAIN_OUTGOING " -m mac --mac-source %s -p tcp --dport 80 -j RETURN > /dev/null 2>&1", mac);
 	execute("ip6tables -I FORWARD -m mac --mac-source %s -j ACCEPT", mac);
 	return iptables_do_command("-t mangle -I " CHAIN_BLOCKED " -m mac --mac-source %s -j RETURN", mac);
 }
@@ -340,7 +340,7 @@ int
 iptables_trust_mac(const char mac[])
 {
 	// 信任设备时 添加放行命令，设备可以访问ipv6互联网
-	iptables_do_command("-t nat -I " CHAIN_OUTGOING " -m mac --mac-source %s -p tcp --dport 80 -j RETURN", mac);
+	iptables_do_command("-t nat -I " CHAIN_OUTGOING " -m mac --mac-source %s -p tcp --dport 80 -j RETURN > /dev/null 2>&1", mac);
 	execute("ip6tables -I FORWARD -m mac --mac-source %s -j ACCEPT", mac);
 	return iptables_do_command("-t mangle -A " CHAIN_TRUSTED " -m mac --mac-source %s -j MARK %s 0x%x", mac, markop, FW_MARK_TRUSTED);
 }
