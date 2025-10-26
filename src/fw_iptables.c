@@ -465,11 +465,6 @@ iptables_fw_init(void)
 	rc |= iptables_do_command("-t mangle -I PREROUTING 3 -i %s -s %s -j " CHAIN_TRUSTED, gw_interface, gw_iprange);
 	rc |= iptables_do_command("-t mangle -I POSTROUTING 1 -o %s -d %s -j " CHAIN_INCOMING, gw_interface, gw_iprange);
 
-	/* Rules to mark as trusted MAC address packets in mangle PREROUTING */
-	for (; pt != NULL; pt = pt->next) {
-		rc |= iptables_trust_mac(pt->mac);
-	}
-
 	/* Rules to mark as blocked MAC address packets in mangle PREROUTING */
 	if (MAC_BLOCK == macmechanism) {
 		/* with the MAC_BLOCK mechanism,
@@ -533,10 +528,22 @@ iptables_fw_init(void)
 		rc |= iptables_do_command("-t nat -A " CHAIN_OUTGOING " -p tcp --dport 80 -j DNAT --to-destination %s", gw_address);
 		// CHAIN_OUTGOING, other packets ACCEPT
 		rc |= iptables_do_command("-t nat -A " CHAIN_OUTGOING " -j ACCEPT");
+		
+		LOCK_CONFIG();  
+		// 处理信任列表  
 		/* Rules to mark as trusted MAC address packets in mangle PREROUTING */
-		for (; pt != NULL; pt = pt->next) {
-			rc |= iptables_trust_mac(pt->mac);
-		}
+		for (pt = config->trustedmaclist; pt != NULL; pt = pt->next) {  
+    		rc |= iptables_trust_mac(pt->mac);  
+		}  
+  		// 处理允许列表  
+		if (macmechanism == MAC_ALLOW) {  
+    		for (pa = config->allowedmaclist; pa != NULL; pa = pa->next) {  
+        		iptables_do_command("-t nat -I " CHAIN_OUTGOING " -m mac --mac-source %s -p tcp --dport 80 -j RETURN", pa->mac);  
+        		execute("ip6tables -I FORWARD -m mac --mac-source %s -j ACCEPT", pa->mac);  
+    		}  
+		}  
+		UNLOCK_CONFIG();
+
 	}
 	/*
 	 * End of nat table chains and rules (ip4 only)
