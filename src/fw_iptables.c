@@ -533,6 +533,10 @@ iptables_fw_init(void)
 		rc |= iptables_do_command("-t nat -A " CHAIN_OUTGOING " -p tcp --dport 80 -j DNAT --to-destination %s", gw_address);
 		// CHAIN_OUTGOING, other packets ACCEPT
 		rc |= iptables_do_command("-t nat -A " CHAIN_OUTGOING " -j ACCEPT");
+		/* Rules to mark as trusted MAC address packets in mangle PREROUTING */
+		for (; pt != NULL; pt = pt->next) {
+			rc |= iptables_trust_mac(pt->mac);
+		}
 	}
 	/*
 	 * End of nat table chains and rules (ip4 only)
