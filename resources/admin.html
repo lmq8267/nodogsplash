@@ -49,6 +49,7 @@ h1 {
     color: #ffeb3b;
     font-weight: bold;
     text-shadow: 1px 1px 2px rgba(0,0,0,0.4);
+    margin-left: 10px; 
 }
 
 .info-section {
@@ -129,6 +130,24 @@ input[type="text"], input[type="number"], input[type="password"] {
 #login-box button {
     margin-top: 10px;
 }
+/* 登录按钮样式 */
+.login-btn {
+    width: 80px;              /* 按钮长 */
+    height: 40px;              /* 按钮高 */
+    font-size: 1rem;         
+    font-weight: bold;       
+    border-radius: 10px;      
+    background: linear-gradient(90deg,#9C27B0,#BA68C8); /* 渐变背景 */
+    color: #fff;             
+    cursor: pointer;          
+    transition: transform 0.2s, box-shadow 0.2s; /* 悬停动画 */
+}
+
+/* 悬停动画效果 */
+.login-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+}
 </style>
 </head>
 <body>
@@ -136,11 +155,11 @@ input[type="text"], input[type="number"], input[type="password"] {
 <!-- 登录界面 -->
 <div id="login-container">
     <div id="login-box">
-        <h2>请输入管理员令牌</h2>
+        <h2>管理页面</h2>
         <input type="password" id="admin_token" placeholder="管理员令牌"
                onfocus="this.type='text'" onblur="this.type='password'" onkeypress="checkEnter(event)">
         <br>
-        <button class="refresh-btn" onclick="login()"> 登录 </button>
+        <button class="login-btn" onclick="login()"> 登录 </button>
     </div>
 </div>
 
