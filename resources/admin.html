@@ -174,7 +174,7 @@ input[type="text"], input[type="number"], input[type="password"] {
             <div style="margin-left:auto; display:flex; align-items:center;">
                 <!-- 新增自动刷新时间输入框 -->
                 <label for="refresh-interval" style="margin-right:5px;">自动刷新间隔(秒)：</label>
-                <input type="number" id="refresh-interval" value="5" min="1" style="width:60px; margin-right:10px;">
+                <input type="number" id="refresh-interval" value="10" min="1" style="width:60px; margin-right:10px;">
                 <button class="refresh-btn" id="refresh-btn" onclick="refreshWithSpin()">手动刷新</button>
                 <button class="logout-btn" onclick="logout()">注销</button>
             </div>
@@ -225,7 +225,7 @@ function checkEnter(e){
 }
 
 let refreshTimer = null; // 自动刷新定时器对象
-let refreshInterval = 5000; // 默认刷新间隔5秒（单位毫秒）
+let refreshInterval = 10000; // 默认刷新间隔10秒（单位毫秒）
 
 // ============ 登录验证 ============
 function login(){
@@ -256,7 +256,7 @@ function login(){
 // 启动自动刷新逻辑
 function startAutoRefresh(){
     clearInterval(refreshTimer); // 清除旧定时器
-    const inputVal = parseInt(document.getElementById('refresh-interval').value) || 5;
+    const inputVal = parseInt(document.getElementById('refresh-interval').value) || 10;
     refreshInterval = inputVal * 1000; // 转换为毫秒
     refreshTimer = setInterval(loadClients, refreshInterval);
 }
@@ -296,7 +296,19 @@ function loadClients(){
 }
 
 function formatTime(ts){ if(!ts||ts==0)return'-'; return new Date(ts*1000).toLocaleString('zh-CN'); }
-function formatDuration(sec){ if(!sec||sec<=0)return'-'; const h=Math.floor(sec/3600), m=Math.floor((sec%3600)/60), s=sec%60; return `${h}时${m}分${s}秒`; }
+function formatDuration(sec) {
+    if (!sec || sec <= 0) return '-';
+    const days = Math.floor(sec / 86400); 
+    const hours = Math.floor((sec % 86400) / 3600);
+    const minutes = Math.floor((sec % 3600) / 60);
+    const seconds = sec % 60;
+    let result = '';
+    if (days > 0) result += `${days}天`;
+    if (hours > 0 || days > 0) result += `${hours}时`;
+    if (minutes > 0 || hours > 0 || days > 0) result += `${minutes}分`;
+    result += `${seconds}秒`;
+    return result;
+}
 
 function displayClients(data){
     const tbody=document.getElementById('clients-body');
@@ -351,7 +363,7 @@ function displayClients(data){
 
         // 设置时长列
         const dur=row.insertCell(10);
-        dur.innerHTML=`<input type="number" id="duration_${c["客户端ID"]}" placeholder="秒" style="width:80px">
+        dur.innerHTML=`<input type="number" id="duration_${c["客户端ID"]}" placeholder="分" style="width:80px">
         <button class="duration-btn" onclick="setDuration('${c["MAC地址"]}',${c["客户端ID"]})">设置</button>`;
     }
 }
@@ -369,7 +381,8 @@ function setDuration(client,id){
     const val=document.getElementById('duration_'+id).value;
     if(!val){ alert('请输入时长'); return; }
     const token=localStorage.getItem('admin_token');
-    fetch(`/admin/set_duration?admin_token=${encodeURIComponent(token)}&client=${encodeURIComponent(client)}&duration=${val}`)
+    const durationInSeconds = val * 60;
+    fetch(`/admin/set_duration?admin_token=${encodeURIComponent(token)}&client=${encodeURIComponent(client)}&duration=${durationInSeconds}`)
         .then(res=>res.json())
         .then(data=>{ if(data.success){alert('设置成功'); loadClients();} else{alert('错误:'+(data.error||'未知错误'));} })
         .catch(err=>{alert('请求失败:'+err);});
