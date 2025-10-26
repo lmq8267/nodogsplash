@@ -538,8 +538,8 @@ iptables_fw_init(void)
   		// 处理允许列表  
 		if (macmechanism == MAC_ALLOW) {  
     		for (pa = config->allowedmaclist; pa != NULL; pa = pa->next) {  
-        		iptables_do_command("-t nat -I " CHAIN_OUTGOING " -m mac --mac-source %s -p tcp --dport 80 -j RETURN", pa->mac);  
-        		execute("ip6tables -I FORWARD -m mac --mac-source %s -j ACCEPT", pa->mac);  
+        		iptables_do_command("-t nat -I " CHAIN_OUTGOING " -m mac --mac-source %s -p tcp --dport 80 -j RETURN > /dev/null 2>&1", pa->mac);  
+        		execute("ip6tables -I FORWARD -m mac --mac-source %s -j ACCEPT > /dev/null 2>&1", pa->mac);  
     		}  
 		}  
 		UNLOCK_CONFIG();
