@@ -490,7 +490,7 @@ ndsctl_status(FILE *fp)
 		fprintf(fp, "重定向 URL: %s\n", config->redirectURL);
 	}
 
-	fprintf(fp, "流量控制: %s\n", config->traffic_control ? "已启用" : "已禁用");
+	fprintf(fp, "流量控制: %s\n", config->traffic_control ? "已启用 (警告: 此功能已损坏)" : "已禁用");
 
 	if (config->traffic_control) {
 		if (config->download_limit > 0) {
@@ -644,6 +644,7 @@ ndsctl_clients(FILE *fp)
 	while (client != NULL) {
 		fprintf(fp, "客户端ID=%d\n", indx);
 		fprintf(fp, "IP地址=%s\nMAC地址=%s\n", client->ip, client->mac);
+		fprintf(fp, "主机名=%s\n", client->hostname ? client->hostname : "未知");
 		fprintf(fp, "加入时间=%lld\n", (long long) client->session_start);
 		fprintf(fp, "最后活跃时间=%lld\n", (long long) client->counters.last_updated);
 		if (client->session_start) {

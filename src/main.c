@@ -90,6 +90,87 @@ bool write_state_file = false;
  * parent process. This handler catches it and reaps the child process so it
  * can exit. Otherwise we'd get zombie processes.
  */
+/** 写入 PID 文件 */  
+static void write_pid_file(void)  
+{  
+    const char *pid_file = "/var/run/nodogsplash.pid";  
+    FILE *fp = fopen(pid_file, "w");  
+      
+    if (fp) {  
+        fprintf(fp, "%d\n", getpid());  
+        fclose(fp);  
+        //debug(LOG_INFO, "已写入 PID 文件【%s】，PID=%d", pid_file, getpid());  
+    } else {  
+        debug(LOG_WARNING, "无法写入 PID 文件【%s】: %s", pid_file, strerror(errno));  
+    }  
+}  
+  
+/** 检查并停止旧进程 */  
+static void check_and_stop_old_process(void)  
+{  
+    const char *pid_file = "/var/run/nodogsplash.pid";  
+    FILE *fp = fopen(pid_file, "r");  
+      
+    if (!fp) {  
+        debug(LOG_DEBUG, "PID 文件【%s】不存在，无旧进程", pid_file);  
+        return;  
+    }  
+      
+    pid_t old_pid;  
+    if (fscanf(fp, "%d", &old_pid) != 1) {  
+        debug(LOG_WARNING, "无法读取 PID 文件【%s】", pid_file);  
+        fclose(fp);  
+        unlink(pid_file);  
+        return;  
+    }  
+    fclose(fp);  
+      
+    // 检查进程是否存在  
+    if (kill(old_pid, 0) != 0) {  
+        if (errno == ESRCH) {  
+            //debug(LOG_INFO, "PID 文件中的进程【%d】已不存在，清理 PID 文件", old_pid);  
+            unlink(pid_file);  
+        } else {  
+            debug(LOG_WARNING, "检查进程【%d】时出错: %s", old_pid, strerror(errno));  
+        }  
+        return;  
+    }  
+      
+    // 进程存在，尝试优雅停止  
+    debug(LOG_WARNING, "检测到旧的 nodogsplash 进程【PID:%d】，正在停止...", old_pid);  
+    debug(LOG_INFO, "发送 SIGTERM 信号，等待进程保存数据并退出...");  
+      
+    if (kill(old_pid, SIGTERM) == 0) {  
+        // 增加等待时间到 5 秒，给进程足够时间保存数据  
+        int wait_count = 0;  
+        int max_wait = 25;  // 25 × 200ms = 5 秒  
+          
+        while (wait_count < max_wait && kill(old_pid, 0) == 0) {  
+            usleep(200000);  // 等待 200ms  
+            wait_count++;  
+              
+            // 每秒输出一次进度  
+            if (wait_count % 5 == 0) {  
+                debug(LOG_INFO, "等待旧进程退出... (%d/%d 秒)", wait_count / 5, max_wait / 5);  
+            }  
+        }  
+          
+        // 检查是否还在运行  
+        if (kill(old_pid, 0) == 0) {  
+            debug(LOG_WARNING, "进程【PID:%d】在 %d 秒后仍未退出", old_pid, max_wait / 5);  
+            debug(LOG_WARNING, "客户端上网状态数据可能未完全缓存，发送 SIGKILL 强制终止");  
+            kill(old_pid, SIGKILL);  
+            sleep(1);  
+        } else {  
+            debug(LOG_INFO, "旧进程【PID:%d】已成功退出，数据已保存", old_pid);  
+        }  
+    } else {  
+        debug(LOG_ERR, "无法发送 SIGTERM 到进程【%d】: %s", old_pid, strerror(errno));  
+    }  
+      
+    unlink(pid_file);  
+}
+
 void
 sigchld_handler(int s)
 {
@@ -168,6 +249,9 @@ termination_handler(int s)
 		nanosleep(&wait_time, NULL);
 		pthread_kill(tid_client_check, SIGKILL);
 	}
+	// 清理 PID 文件  
+    	const char *pid_file = "/var/run/nodogsplash.pid";  
+    	unlink(pid_file);
 
 	debug(LOG_NOTICE, "退出...");
 	exit(s == 0 ? 1 : 0);
@@ -239,6 +323,8 @@ main_loop(void)
 	s_config *config;
 
 	config = config_get_config();
+	// 检查并停止旧进程  
+    	check_and_stop_old_process();
 	
 	// 只有在禁用端口复用时才检查系统启动时间  
 	//if (!config->address_reuse) {  
@@ -248,9 +334,9 @@ main_loop(void)
 			if (fscanf(uptime_file, "%lf", &uptime_seconds) == 1) {  
 				fclose(uptime_file);  
 				  
-				// 如果系统运行时间小于10秒,认为是刚启动  
-				if (uptime_seconds < 10.0) {  
-					int wait_seconds = (int)(10.0 - uptime_seconds) + 5;  
+				// 如果系统运行时间小于12秒,认为是刚启动  
+				if (uptime_seconds < 12.0) {  
+					int wait_seconds = (int)(12.0 - uptime_seconds) + 5;  
 					debug(LOG_INFO, "检测到系统刚启动(运行时间:%.1f秒),等待%d秒让网络栈初始化...",   
 						uptime_seconds, wait_seconds);  
 					sleep(wait_seconds);  
@@ -363,10 +449,12 @@ main_loop(void)
 
 	/* TODO: set listening socket */
 	debug(LOG_NOTICE, "已创建 Web 认证服务器： 【%s】", config->gw_http_name);
+	// Web 服务器启动成功后写入 PID 文件  
+    	write_pid_file();
 
 	if (config->binauth) {
-		debug(LOG_NOTICE, "Binauth 已启用！\n");
-		debug(LOG_NOTICE, "Binauth 脚本路径： 【%s】\n", config->binauth);
+		debug(LOG_NOTICE, "Binauth 已启用！");
+		debug(LOG_NOTICE, "Binauth 脚本路径： 【%s】", config->binauth);
 	}
 
 	/* Reset the firewall (cleans it, in case we are restarting after nodogsplash crash) */

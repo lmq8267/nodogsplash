@@ -896,7 +896,14 @@ config_read(const char *filename)
 			break;
 		case oTrafficControl:
 			if ((value = parse_boolean(p1)) != -1) {
-				config.traffic_control = value;
+				if (value == 1) {  
+					// 输出警告日志  
+					debug(LOG_WARNING, "警告: TrafficControl 功能已损坏多年且不可用!");  
+					debug(LOG_WARNING, "该功能会导致所有设备断网,已自动禁用!");
+					config.traffic_control = 0;  // 强制设为禁用  
+				} else {  
+					config.traffic_control = value;  
+				}
 			} else {
 				debug(LOG_ERR, "在 %s 中的第 %d 行选项 %s 的参数【%s】出现错误", filename, linenum, s, p1);
 				debug(LOG_ERR, "退出...");

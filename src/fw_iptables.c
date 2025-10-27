@@ -490,7 +490,9 @@ iptables_fw_init(void)
 
 	/* Set up for traffic control */
 	if (traffic_control) {
-		rc |= tc_init_tc();
+		debug(LOG_ERR, "错误: TrafficControl 功能不可用,已被禁用!");  
+		debug(LOG_ERR, "请在配置文件中设置 TrafficControl no"); 
+		//rc |= tc_init_tc();
 	}
 
 	/*

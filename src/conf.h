@@ -48,6 +48,7 @@
 #else
 #define DEFAULT_CONFIGFILE SYSCONFDIR"/nodogsplash/nodogsplash.conf"
 #endif
+#define DEFAULT_PID_FILE "/var/run/nodogsplash.pid"
 #define DEFAULT_DAEMON 1
 #define DEFAULT_DEBUGLEVEL 1
 #define DEFAULT_MAXCLIENTS 20
