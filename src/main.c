@@ -301,7 +301,7 @@ main_loop(void)
 	} else {  
     		debug(LOG_NOTICE, "Web 认证服务器未启用端口复用");  
     		webserver = MHD_start_daemon(  
-        		MHD_USE_EPOLL_INTERNALLY | MHD_USE_TCP_FASTOPEN,  
+        		MHD_USE_EPOLL_INTERNALLY | MHD_USE_TCP_FASTOPEN | MHD_USE_ITC,   
         		config->gw_port,  
         		NULL, NULL,  
         		libmicrohttpd_cb, NULL,  

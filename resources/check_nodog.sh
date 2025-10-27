@@ -49,14 +49,17 @@ fi
 # ---------- 4. 检查流量控制模块 ----------
 echo ""
 echo "➡ 检查流量控制 (TrafficControl) 模块..."
-tc qdisc add dev eth0 root fq_codel 2>/dev/null
-if [ $? -eq 0 ]; then ok "支持 sch_fq_codel"; tc qdisc del dev eth0 root 2>/dev/null; else fail "不支持 sch_fq_codel"; fi
+tc qdisc add dev br0 root fq_codel 2>/dev/null
+if [ $? -eq 0 ]; then ok "支持 sch_fq_codel"; tc qdisc del dev br0 root 2>/dev/null; else fail "不支持 sch_fq_codel"; fi
 
-tc qdisc add dev eth0 root hfsc 2>/dev/null
-if [ $? -eq 0 ]; then ok "支持 sch_hfsc"; tc qdisc del dev eth0 root 2>/dev/null; else fail "不支持 sch_hfsc"; fi
+tc qdisc add dev br0 root hfsc 2>/dev/null
+if [ $? -eq 0 ]; then ok "支持 sch_hfsc"; tc qdisc del dev br0 root 2>/dev/null; else fail "不支持 sch_hfsc"; fi
 
 tc action add mirred egress redirect dev ifb0 2>/dev/null
 if [ $? -eq 0 ]; then ok "支持 act_mirred"; else fail "不支持 act_mirred"; fi
+
+tc action add action connmark 2>/dev/null  
+if [ $? -eq 0 ]; then ok "支持 act_connmark"; else fail "不支持 act_connmark"; fi
 
 if ls /sys/class/net/ | grep -q "ifb"; then ok "检测到 ifb 设备"; else fail "未检测到 ifb 设备"; fi
 
