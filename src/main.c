@@ -241,7 +241,7 @@ main_loop(void)
 	config = config_get_config();
 	
 	// 只有在禁用端口复用时才检查系统启动时间  
-	if (!config->address_reuse) {  
+	//if (!config->address_reuse) {  
 		FILE *uptime_file = fopen("/proc/uptime", "r");  
 		if (uptime_file) {  
 			double uptime_seconds;  
@@ -259,7 +259,7 @@ main_loop(void)
 				fclose(uptime_file);  
 			}  
 		}  
-	}
+	//}
 
 	/* Set the time when nodogsplash started */
 	if (!started_time) {
@@ -311,34 +311,54 @@ main_loop(void)
 
 	/* Initializes the web server */
 	// 定义 MHD 启动参数数组，最后以 MHD_OPTION_END 结束
-	struct MHD_Daemon *webserver;  
+	struct MHD_Daemon *webserver = NULL;  
+	int retry_count = 0;  
+	const int max_retries = 50;  // 最多重试50次  
+	const int retry_interval = 5; // 每次间隔5秒  
   
-	if (config->address_reuse) {  
-    		//debug(LOG_NOTICE, "Web 认证服务器启用端口复用");  
-    		webserver = MHD_start_daemon(  
-        		MHD_USE_EPOLL_INTERNALLY | MHD_USE_TCP_FASTOPEN,  
-        		config->gw_port,  
-        		NULL, NULL,  
-        		libmicrohttpd_cb, NULL,  
-        		MHD_OPTION_CONNECTION_TIMEOUT, (unsigned int)120,  
-        		MHD_OPTION_LISTENING_ADDRESS_REUSE, 1,  
-        		MHD_OPTION_END  
-    		);  
-	} else {  
-    		debug(LOG_NOTICE, "Web 认证服务器未启用端口复用");  
-    		webserver = MHD_start_daemon(  
-        		MHD_USE_EPOLL_INTERNALLY | MHD_USE_TCP_FASTOPEN | MHD_USE_ITC,   
-        		config->gw_port,  
-        		NULL, NULL,  
-        		libmicrohttpd_cb, NULL,  
-        		MHD_OPTION_CONNECTION_TIMEOUT, (unsigned int)120,  
-        		MHD_OPTION_END  
-    		);  
-	}  
-
-	if (webserver == NULL) {
-    		debug(LOG_ERR, "无法创建 Web 认证服务器: 【%s】", strerror(errno));
-    		exit(1);
+	while (webserver == NULL && retry_count < max_retries) {  
+    	if (config->address_reuse) {  
+        	//debug(LOG_NOTICE, "Web 认证服务器启用端口复用");  
+       		webserver = MHD_start_daemon(  
+            	MHD_USE_EPOLL_INTERNALLY | MHD_USE_TCP_FASTOPEN,  
+            	config->gw_port,  
+           	 	NULL, NULL,  
+            	libmicrohttpd_cb, NULL,  
+            	MHD_OPTION_CONNECTION_TIMEOUT, (unsigned int)120,  
+            	MHD_OPTION_LISTENING_ADDRESS_REUSE, 1,  
+            	MHD_OPTION_END  
+        	);  
+    	} else {  
+        	debug(LOG_NOTICE, "Web 认证服务器未启用端口复用");  
+        	webserver = MHD_start_daemon(  
+            	MHD_USE_EPOLL_INTERNALLY | MHD_USE_TCP_FASTOPEN | MHD_USE_ITC,  
+            	config->gw_port,  
+            	NULL, NULL,  
+            	libmicrohttpd_cb, NULL,  
+            	MHD_OPTION_CONNECTION_TIMEOUT, (unsigned int)120,  
+           		MHD_OPTION_END  
+        	);  
+    	}  
+      
+    	if (webserver == NULL) {  
+        	int err = errno;   
+        	if (err == EADDRINUSE) {  
+            	// 只有端口被占用时才重试  
+            	retry_count++;  
+            	if (retry_count < max_retries) {  
+                	debug(LOG_WARNING, "端口 %d 被占用,等待 %d 秒后重试 (%d/%d)",   
+                    config->gw_port, retry_interval, retry_count, max_retries);  
+                	sleep(retry_interval);  
+            	} else {  
+                	debug(LOG_ERR, "端口 %d 被占用,已达到最大重试次数,退出", config->gw_port);  
+                	exit(1);  
+            	}  
+        	} else {  
+            	// 其他错误立即退出  
+            	debug(LOG_ERR, "无法创建 Web 认证服务器: 【%s】(errno=%d)", strerror(err), err);  
+            	exit(1);  
+        	}  
+    	}  
 	}
 
 	/* TODO: set listening socket */
