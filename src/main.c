@@ -73,6 +73,7 @@
  * so we can explicitly kill them in the termination handler
  */
 static pthread_t tid_client_check = 0;
+volatile sig_atomic_t shutdown_flag = 0;  
 
 /* The internal web server */
 struct MHD_Daemon * webserver = NULL;
@@ -128,6 +129,8 @@ void
 termination_handler(int s)
 {
 	static pthread_mutex_t sigterm_mutex = PTHREAD_MUTEX_INITIALIZER;
+	
+	shutdown_flag = 1;
 
 	debug(LOG_NOTICE, "终止信号处理程序捕获到信号【%d】", s);
 
@@ -161,6 +164,8 @@ termination_handler(int s)
 	 */
 	if (tid_client_check) {
 		debug(LOG_INFO, "明确终止 fw_counter 线程");
+		struct timespec wait_time = {.tv_sec = 0, .tv_nsec = 100000000}; // 100ms  
+		nanosleep(&wait_time, NULL);
 		pthread_kill(tid_client_check, SIGKILL);
 	}
 
@@ -234,6 +239,27 @@ main_loop(void)
 	s_config *config;
 
 	config = config_get_config();
+	
+	// 只有在禁用端口复用时才检查系统启动时间  
+	if (!config->address_reuse) {  
+		FILE *uptime_file = fopen("/proc/uptime", "r");  
+		if (uptime_file) {  
+			double uptime_seconds;  
+			if (fscanf(uptime_file, "%lf", &uptime_seconds) == 1) {  
+				fclose(uptime_file);  
+				  
+				// 如果系统运行时间小于10秒,认为是刚启动  
+				if (uptime_seconds < 10.0) {  
+					int wait_seconds = (int)(10.0 - uptime_seconds) + 5;  
+					debug(LOG_INFO, "检测到系统刚启动(运行时间:%.1f秒),等待%d秒让网络栈初始化...",   
+						uptime_seconds, wait_seconds);  
+					sleep(wait_seconds);  
+				}  
+			} else {  
+				fclose(uptime_file);  
+			}  
+		}  
+	}
 
 	/* Set the time when nodogsplash started */
 	if (!started_time) {

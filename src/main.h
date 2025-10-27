@@ -28,7 +28,7 @@
 
 
 #define MINIMUM_STARTED_TIME 1178487900 /* 2007-05-06 */
-
+extern volatile sig_atomic_t shutdown_flag;
 /** @brief exits cleanly and clear the firewall rules. */
 void termination_handler(int s);
 

@@ -31,6 +31,7 @@
 #include <sys/socket.h>
 #include <unistd.h>
 #include <syslog.h>
+#include <signal.h>
 
 #include "conf.h"
 #include "debug.h"
@@ -215,8 +216,13 @@ thread_client_timeout_check(void *arg)
 	pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
 	pthread_mutex_t cond_mutex = PTHREAD_MUTEX_INITIALIZER;
 	struct timespec timeout;
+	extern volatile sig_atomic_t shutdown_flag;
 
 	while (1) {
+		if (shutdown_flag) {  
+			debug(LOG_INFO, "检测到关闭标志,客户端超时检查线程正常退出");  
+			pthread_exit(NULL);  
+		}
 		debug(LOG_DEBUG, "运行 fw_refresh_client_list()");
 
 		fw_refresh_client_list();
