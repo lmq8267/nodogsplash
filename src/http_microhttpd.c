@@ -149,6 +149,32 @@ static void log_admin_operation(struct MHD_Connection *connection, const char *o
           op_cn, target ? target : "无", result_str, ip, mac);  
 }
 
+/**  
+ * 格式化字节数为人类可读格式 (T/G/M/K)  
+ * 避免 buffer overflow  
+ */  
+static void format_bytes(unsigned long long bytes, char *buf, size_t buf_size)  
+{  
+	if (buf == NULL || buf_size < 32) {  
+		return;  
+	}  
+	  
+	double size = (double)bytes;  
+	const char *units[] = {"B", "K", "M", "G", "T"};  
+	int unit_index = 0;  
+	  
+	while (size >= 1024.0 && unit_index < 4) {  
+		size /= 1024.0;  
+		unit_index++;  
+	}  
+	  
+	if (unit_index == 0) {  
+		snprintf(buf, buf_size, "%llu %s", bytes, units[unit_index]);  
+	} else {  
+		snprintf(buf, buf_size, "%.2f %s", size, units[unit_index]);  
+	}  
+} 
+
 static int admin_get_clients(struct MHD_Connection *connection) {  
     t_client *client;  
     struct MHD_Response *response;  
@@ -226,11 +252,17 @@ static int admin_get_clients(struct MHD_Connection *connection) {
             }  
             pa = pa->next;  
         }  
-          
+        // 格式化上传下载数据  
+    	char download_str[64];  
+    	char upload_str[64];  
+    	format_bytes(client->counters.incoming, download_str, sizeof(download_str));  
+    	format_bytes(client->counters.outgoing, upload_str, sizeof(upload_str));  
+         
+        
         offset += snprintf(json_str + offset, HTMLMAXSIZE - offset,  
             "\"%s\":{\"客户端ID\":%lu,\"主机名\":\"%s\",\"IP地址\":\"%s\",\"MAC地址\":\"%s\","  
             "\"加入时间\":%lld,\"最后活跃时间\":%lld,\"会话持续时间\":%lld,"  
-            "\"token\":\"%s\",\"状态\":\"%s\",\"已下载\":%llu,\"已上传\":%llu,"  
+            "\"token\":\"%s\",\"状态\":\"%s\",\"已下载\":\"%s\",\"已上传\":\"%s\","  
             "\"会话结束时间\":%lld,\"剩余时间\":%ld,"  
             "\"已认证\":%d,\"已信任\":%d,\"已拉黑\":%d,\"已允许\":%d}",  
             client->mac,  
@@ -243,8 +275,8 @@ static int admin_get_clients(struct MHD_Connection *connection) {
             (long long)(client->session_start ? now - client->session_start : 0),  
             client->token ? client->token : "none",  
             fw_connection_state_as_string(client->fw_connection_state),  
-            client->counters.incoming / 1000,  
-            client->counters.outgoing / 1000,  
+            download_str,    
+            upload_str,  
             (long long)client->session_end,  
             remaining,  
             is_authenticated,  
@@ -1203,7 +1235,7 @@ int send_redirect_temp(struct MHD_Connection *connection, const char *url)
 	"</body>"
 	"</html>";
 
-	safe_asprintf(&redirect, redirect_body, url, url);
+	safe_asprintf(&redirect, redirect_body, url, url, url);
 
 	response = MHD_create_response_from_buffer(strlen(redirect), redirect, MHD_RESPMEM_MUST_FREE);
 	if (!response) {
@@ -1414,32 +1446,6 @@ static enum MHD_Result get_host_value_callback(void *cls, enum MHD_ValueKind kin
 
 	return MHD_YES;
 }
-
-/**  
- * 格式化字节数为人类可读格式 (T/G/M/K)  
- * 避免 buffer overflow  
- */  
-static void format_bytes(unsigned long long bytes, char *buf, size_t buf_size)  
-{  
-	if (buf == NULL || buf_size < 32) {  
-		return;  
-	}  
-	  
-	double size = (double)bytes;  
-	const char *units[] = {"B", "K", "M", "G", "T"};  
-	int unit_index = 0;  
-	  
-	while (size >= 1024.0 && unit_index < 4) {  
-		size /= 1024.0;  
-		unit_index++;  
-	}  
-	  
-	if (unit_index == 0) {  
-		snprintf(buf, buf_size, "%llu %s", bytes, units[unit_index]);  
-	} else {  
-		snprintf(buf, buf_size, "%.2f %s", size, units[unit_index]);  
-	}  
-}  
   
 /**  
  * 格式化会话到期时间   

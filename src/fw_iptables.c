@@ -87,11 +87,11 @@ const char *
 fw_connection_state_as_string(int mark)
 {
 	if (mark == FW_MARK_PREAUTHENTICATED)
-		return "预认证";
+		return "待认证";
 	if (mark == FW_MARK_AUTHENTICATED)
 		return "已认证";
 	if (mark == FW_MARK_TRUSTED)
-		return "受信任";
+		return "已信任";
 	if (mark == FW_MARK_BLOCKED)
 		return "已阻止";
 	return "错误：未识别的标记";
@@ -868,7 +868,7 @@ iptables_fw_authenticate(t_client *client)
 		upload_limit = client->upload_limit;
 	}
 
-	debug(LOG_NOTICE, "正在认证用户【%s】【%s】", client->ip, client->mac);
+	debug(LOG_NOTICE, "用户【%s】【%s】已通过认证", client->ip, client->mac);
 	/* This rule is for marking upload (outgoing) packets, and for upload byte counting */
 	rc |= iptables_do_command("-t mangle -A " CHAIN_OUTGOING " -s %s -m mac --mac-source %s -j MARK %s 0x%x", client->ip, client->mac, markop, FW_MARK_AUTHENTICATED);
 	// 在 NAT 表中也添加 RETURN 规则,避免 DNAT  
@@ -910,7 +910,7 @@ iptables_fw_deauthenticate(t_client *client)
 	}
 
 	/* Remove the authentication rules. */
-	debug(LOG_NOTICE, "正在取消认证用户【%s】【%s】", client->ip, client->mac);
+	debug(LOG_NOTICE, "用户【%s】【%s】已被取消认证", client->ip, client->mac);
 	rc |= iptables_do_command("-t mangle -D " CHAIN_OUTGOING " -s %s -m mac --mac-source %s -j MARK %s 0x%x", client->ip, client->mac, markop, FW_MARK_AUTHENTICATED);
 	rc |= iptables_do_command("-t mangle -D " CHAIN_INCOMING " -d %s -j MARK %s 0x%x", client->ip, markop, FW_MARK_AUTHENTICATED);
 	rc |= iptables_do_command("-t mangle -D " CHAIN_INCOMING " -d %s -j ACCEPT", client->ip);

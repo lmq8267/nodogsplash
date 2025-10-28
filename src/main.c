@@ -396,6 +396,22 @@ main_loop(void)
 	debug(LOG_NOTICE, "检测到网关IP地址 【%s】 接口名称 【%s】 MAC地址 【%s】", config->gw_ip, config->gw_interface, config->gw_mac);
 
 	/* Initializes the web server */
+	// 自动检测端口复用支持  
+	if (config->address_reuse) {  
+    		int test_sock = socket(AF_INET, SOCK_STREAM, 0);  
+    		if (test_sock >= 0) {  
+        		int reuse = 1;  
+        		// 尝试设置 SO_REUSEPORT  
+        		if (setsockopt(test_sock, SOL_SOCKET, SO_REUSEPORT, &reuse, sizeof(reuse)) < 0) {  
+            			if (errno == ENOPROTOOPT) {  
+                			// 系统不支持 SO_REUSEPORT  
+                			debug(LOG_WARNING, "检测到系统不支持端口复用(SO_REUSEPORT),自动禁用");  
+                			config->address_reuse = 0;  
+            			}  
+        		}  
+        		close(test_sock);  
+    		}  
+	}
 	// 定义 MHD 启动参数数组，最后以 MHD_OPTION_END 结束
 	struct MHD_Daemon *webserver = NULL;  
 	int retry_count = 0;  
