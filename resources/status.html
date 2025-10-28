@@ -7,7 +7,7 @@
 <meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<title>$gatewayname 热点认证状态</title>
+<title>$gatewayname 热点状态</title>
 <link rel="shortcut icon" href="/splash.jpg" type="image/x-icon">
 
 <style>
@@ -178,6 +178,7 @@ hr {
 	clientmac: $clientmac
 	clientupload: $clientupload
 	clientdownload: $clientdownload
+	sessionend: $sessionend
 	gatewaymac: $gatewaymac
 	nclients: $nclients
 	maxclients: $maxclients
@@ -206,6 +207,7 @@ BinAuth 变量：
             <strong>客户端 MAC:</strong> $clientmac <br>
             <strong>已上传:</strong> $clientupload 字节<br>
             <strong>已下载:</strong> $clientdownload 字节<br>
+            <strong>上网到期时间:</strong> $sessionend<br>
             <strong>会话令牌:</strong> $token
         </p>
     </div>

@@ -1415,6 +1415,97 @@ static enum MHD_Result get_host_value_callback(void *cls, enum MHD_ValueKind kin
 	return MHD_YES;
 }
 
+/**  
+ * 格式化字节数为人类可读格式 (T/G/M/K)  
+ * 避免 buffer overflow  
+ */  
+static void format_bytes(unsigned long long bytes, char *buf, size_t buf_size)  
+{  
+	if (buf == NULL || buf_size < 32) {  
+		return;  
+	}  
+	  
+	double size = (double)bytes;  
+	const char *units[] = {"B", "K", "M", "G", "T"};  
+	int unit_index = 0;  
+	  
+	while (size >= 1024.0 && unit_index < 4) {  
+		size /= 1024.0;  
+		unit_index++;  
+	}  
+	  
+	if (unit_index == 0) {  
+		snprintf(buf, buf_size, "%llu %s", bytes, units[unit_index]);  
+	} else {  
+		snprintf(buf, buf_size, "%.2f %s", size, units[unit_index]);  
+	}  
+}  
+  
+/**  
+ * 格式化会话到期时间   
+ */  
+static void format_sessionend(t_client *client, char *buf, size_t buf_size)  
+{  
+	if (buf == NULL || buf_size < 128) {  
+		return;  
+	}  
+	  
+	time_t now = time(NULL);  
+	  
+	// 检查是否为信任或允许状态  
+	if (client->fw_connection_state == FW_MARK_TRUSTED) {  
+		snprintf(buf, buf_size, "无限制");  
+		return;  
+	}  
+	  
+	// 检查是否被拉黑  
+	if (client->fw_connection_state == FW_MARK_BLOCKED) {  
+		snprintf(buf, buf_size, "已到期，请重新认证或联系管理员！");  
+		return;  
+	}  
+	  
+	// 如果 session_end 为 0 或未设置,表示无限制  
+	if (client->session_end == 0) {  
+		snprintf(buf, buf_size, "无限制");  
+		return;  
+	}  
+	  
+	// 格式化到期时间  
+	struct tm *tm_info = localtime(&client->session_end);  
+	char time_str[64];  
+	strftime(time_str, sizeof(time_str), "%Y-%m-%d %H:%M:%S", tm_info);  
+	  
+	// 计算剩余时间  
+	long long remaining = (long long)(client->session_end - now);  
+	  
+	if (remaining <= 0) {  
+		snprintf(buf, buf_size, "已到期，请重新认证或联系管理员！");  
+		return;  
+	}  
+	  
+	// 转换为天时分秒  
+	int days = remaining / (24 * 3600);  
+	remaining %= (24 * 3600);  
+	int hours = remaining / 3600;  
+	remaining %= 3600;  
+	int minutes = remaining / 60;  
+	int seconds = remaining % 60;  
+	  
+	if (days > 0) {  
+		snprintf(buf, buf_size, "%s (剩余 %d天%d时%d分%d秒)",   
+			time_str, days, hours, minutes, seconds);  
+	} else if (hours > 0) {  
+		snprintf(buf, buf_size, "%s (剩余 %d时%d分%d秒)",   
+			time_str, hours, minutes, seconds);  
+	} else if (minutes > 0) {  
+		snprintf(buf, buf_size, "%s (剩余 %d分%d秒)",   
+			time_str, minutes, seconds);  
+	} else {  
+		snprintf(buf, buf_size, "%s (剩余 %d秒)",   
+			time_str, seconds);  
+	}  
+}
+
 /**
  * Replace variables in src and copy result to dst
  */
@@ -1426,8 +1517,9 @@ static void replace_variables(
 
 	char nclients[12];
 	char maxclients[12];
-	char clientupload[20];
-	char clientdownload[20];
+	char clientupload[64] = "0 B";  
+	char clientdownload[64] = "0 B";  
+	char sessionend[128] = "未知"; 
 	char uptime[64];
 
 	const char *redirect_url = NULL;
@@ -1435,8 +1527,11 @@ static void replace_variables(
 	char *authaction = NULL;
 	char *authtarget = NULL;
 
-	sprintf(clientupload, "%llu", client->counters.outgoing);
-	sprintf(clientdownload, "%llu", client->counters.incoming);
+	if (client != NULL) {
+		format_bytes(client->counters.outgoing, clientupload, sizeof(clientupload)); 
+		format_bytes(client->counters.incoming, clientdownload, sizeof(clientdownload));  
+		format_sessionend(client, sessionend, sizeof(sessionend));  
+	}
 
 	get_uptime_string(uptime);
 	redirect_url = get_redirect_url(connection);
@@ -1455,6 +1550,7 @@ static void replace_variables(
 		{"clientmac", client->mac},
 		{"clientupload", clientupload},
 		{"clientdownload", clientdownload},
+		{"sessionend", sessionend},
 		{"gatewaymac", config->gw_mac},
 		{"gatewayname", config->gw_name},
 		{"maxclients", maxclients},
