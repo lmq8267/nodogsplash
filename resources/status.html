@@ -140,6 +140,11 @@ hr {
     color: #ccc;
 }
 </style>
+<script>
+setTimeout(function() {
+    location.reload();
+}, 5000);
+</script>
 </head>
 
 <body>
@@ -178,7 +183,6 @@ hr {
 	clientmac: $clientmac
 	clientupload: $clientupload
 	clientdownload: $clientdownload
-	sessionend: $sessionend
 	gatewaymac: $gatewaymac
 	nclients: $nclients
 	maxclients: $maxclients
@@ -191,7 +195,7 @@ BinAuth 变量：
 -->
 
     <!-- 页面标题 -->
-    <h1>$gatewayname 热点认证</h1>
+    <h1>$gatewayname 热点状态</h1>
 
     <!-- 页面主图片 -->
     <img src="/splash.jpg" alt="">
@@ -203,44 +207,22 @@ BinAuth 变量：
     <div class="info-section">
         <h3>客户端信息</h3>
         <p>
-            <strong>客户端 IP:</strong> $clientip <br>
-            <strong>客户端 MAC:</strong> $clientmac <br>
-            <strong>已上传:</strong> $clientupload 字节<br>
-            <strong>已下载:</strong> $clientdownload 字节<br>
-            <strong>上网到期时间:</strong> $sessionend<br>
-            <strong>会话令牌:</strong> $token
+            <strong>您的 IP:</strong> $clientip <br>
+            <strong>您的 MAC:</strong> $clientmac <br>
+            <strong>已上传:</strong> $clientupload <br>
+            <strong>已下载:</strong> $clientdownload <br>
+	  <strong>上网到期时间:</strong> $sessionend <br>
         </p>
     </div>
 
-    <!-- 网关信息 -->
-    <div class="info-section">
-        <h3>网关信息</h3>
-        <p>
-            <strong>网关名称:</strong> $gatewayname <br>
-            <strong>网关 MAC:</strong> $gatewaymac <br>
-            <strong>系统版本:</strong> $version <br>
-            <strong>系统运行时间:</strong> $uptime 
-        </p>
-    </div>
 
-    <!-- 连接统计 -->
-    <div class="info-section">
-        <h3>连接统计</h3>
-        <p>
-            <strong>当前在线客户端:</strong> $nclients <br>
-            <strong>最大客户端数:</strong> $maxclients 
-        </p>
-    </div>
     <!-- 注销按钮 -->
-    <a href="$denyaction" class="btn-logout">注销</a>
-    <!-- 版权信息 -->
-    <div class="copy-right">
-        版权所有 &copy; Nodogsplash 贡献者 2004-2025。<br>
-        本软件依据 GNU GPL 许可证发布。
-    </div>
+    <a href="$denyaction" class="btn-logout" onclick="return confirm('断开后将无法访问互联网！');">断开联网</a>
+
 
 </div>
 
 </body>
 </html>
+
 
