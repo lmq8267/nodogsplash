@@ -1,5 +1,7 @@
 ## Nodogsplash 项目
 
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/lmq8267/nodogsplash)
+
 ### UI：
 
 <img width="363" height="474" alt="image" src="https://github.com/user-attachments/assets/37e4b0c8-734a-4653-8019-7cd370491ebb" />
