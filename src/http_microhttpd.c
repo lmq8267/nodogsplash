@@ -55,7 +55,9 @@
 
 int get_client_ip(char *ip, struct MHD_Connection *connection);
 int get_client_mac(char *mac, const char *ip);
+static int find_ip_by_mac(const char mac[18], char ip[INET6_ADDRSTRLEN]); 
 void fw_refresh_client_list(void);
+extern pthread_mutex_t config_mutex;
 static t_client *add_client(const char mac[], const char ip[]);
 static int authenticated(struct MHD_Connection *connection, const char *url, t_client *client);
 static int preauthenticated(struct MHD_Connection *connection, const char *url, t_client *client);
@@ -175,13 +177,57 @@ static void format_bytes(unsigned long long bytes, char *buf, size_t buf_size)
 	}  
 } 
 
+/**  
+ * @brief 通过 MAC 地址从 ARP 表查找对应的 IP 地址  
+ * @param mac 要查找的 MAC 地址  
+ * @param ip 输出参数,存储找到的 IP 地址  
+ * @return 0 成功, -1 失败  
+ */  
+static int  
+find_ip_by_mac(const char mac[18], char ip[INET6_ADDRSTRLEN])  
+{  
+	char line[255] = {0};  
+	char found_ip[INET6_ADDRSTRLEN] = {0};  
+	char found_mac[18] = {0};  
+	FILE *stream;  
+	  
+	if (!mac || !ip) {  
+		return -1;  
+	}  
+	  
+	stream = popen("ip neigh show", "r");  
+	if (!stream) {  
+		debug(LOG_ERR, "无法执行 ip neigh show 命令来查找信任设备的IP地址！");  
+		return -1;  
+	}  
+	  
+	while (fgets(line, sizeof(line) - 1, stream) != NULL) {  
+		// 解析格式: IP dev INTERFACE lladdr MAC STATE  
+		// 例如: 192.168.1.100 dev br0 lladdr aa:bb:cc:dd:ee:ff REACHABLE  
+		if (sscanf(line, "%s %*s %*s %*s %17[A-Fa-f0-9:]", found_ip, found_mac) == 2) {  
+			if (strcasecmp(found_mac, mac) == 0) {  
+				strncpy(ip, found_ip, INET6_ADDRSTRLEN - 1);  
+				ip[INET6_ADDRSTRLEN - 1] = '\0';  
+				pclose(stream);  
+				debug(LOG_DEBUG, "在 ARP 表中找到设备 MAC【%s】对应的 IP【%s】", mac, ip);  
+				return 0;  
+			}  
+		}  
+	}  
+	  
+	pclose(stream);  
+	// debug(LOG_DEBUG, "在 ARP 表中未找到设备 MAC【%s】对应的 IP", mac);  
+	return -1;  
+}
+
 static int admin_get_clients(struct MHD_Connection *connection) {  
     t_client *client;  
     struct MHD_Response *response;  
     char *json_str;  
     int ret;  
     int auth_result;
-    time_t now = time(NULL);  
+    time_t now = time(NULL); 
+	s_config *config;
       
     //log_admin_operation(connection, "刷新客户端列表", NULL, 0);
     auth_result = check_admin_auth(connection);  
@@ -201,7 +247,45 @@ static int admin_get_clients(struct MHD_Connection *connection) {
       
     // 更新流量计数和会话状态  
     iptables_fw_counters_update();  
-    fw_refresh_client_list();  // 新增:检查到期时间并更新状态   
+    fw_refresh_client_list();  // 新增:检查到期时间并更新状态 
+
+	// 扫描 ARP 表并添加配置文件中的信任设备到客户端列表里  
+    config = config_get_config();  
+    if (config) {  
+        LOCK_CONFIG();  
+        t_MAC *trust_mac = config->trustedmaclist;  
+          
+        while (trust_mac != NULL) {  
+            if (trust_mac->mac && strlen(trust_mac->mac) > 0) {  
+                char ip[INET6_ADDRSTRLEN] = {0};  
+                  
+                // 尝试从 ARP 表中查找该 MAC 对应的 IP  
+                if (find_ip_by_mac(trust_mac->mac, ip) == 0) {  
+                    // 检查是否已在客户端列表中  
+                    LOCK_CLIENT_LIST();  
+                    t_client *existing = client_list_find_by_mac(trust_mac->mac);  
+                      
+                    if (!existing) {  
+                        // 不在列表中,添加该客户端  
+                        t_client *new_client = client_list_add_client(trust_mac->mac, ip);  
+                        if (new_client) {  
+                            debug(LOG_INFO, "已添加信任设备MAC【%s】IP【%s】到客户端列表！",   
+                                  trust_mac->mac, ip);  
+                        } else {  
+                            debug(LOG_WARNING, "信任设备MAC【%s】IP【%s】到客户端列表失败！",   
+                                  trust_mac->mac, ip);  
+                        }  
+                    }  
+                      
+                    UNLOCK_CLIENT_LIST();  
+                }  
+            }  
+              
+            trust_mac = trust_mac->next;  
+        }  
+          
+        UNLOCK_CONFIG();  
+    } 
       
     LOCK_CLIENT_LIST();  
       
@@ -212,7 +296,7 @@ static int admin_get_clients(struct MHD_Connection *connection) {
         return send_error(connection, 500);  
     }  
       
-    s_config *config = config_get_config();  
+    config = config_get_config();  
       
     // 在 JSON 开头添加配置信息  
     int offset = snprintf(json_str, HTMLMAXSIZE,   
@@ -1769,4 +1853,3 @@ static int serve_file(struct MHD_Connection *connection, t_client *client, const
 
 	return ret;
 }
-
