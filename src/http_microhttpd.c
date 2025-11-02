@@ -321,10 +321,10 @@ static int admin_get_clients(struct MHD_Connection *connection) {
 
 	// 计算所需缓冲区大小  
 	int client_count = get_client_list_length();  
-	// 每个客户端约 300 字节,加上 1KB 的元数据和安全余量  
-	size_t buffer_size = (client_count * 300) + 1024;  
-	if (buffer_size < HTMLMAXSIZE) {  
-    	buffer_size = HTMLMAXSIZE;  // 最小 4KB  
+	// 每个客户端约 500 字节,加上 4KB 的元数据和安全余量  
+	size_t buffer_size = (client_count * 500) + 4096;  
+	if (buffer_size < 16384) {  
+    	buffer_size = 16384;  // 最小 16KB  
 	}
       
     // 构建 JSON 响应  
