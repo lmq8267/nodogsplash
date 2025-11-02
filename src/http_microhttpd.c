@@ -53,9 +53,12 @@
 
 /* Max dynamic html page size HTMLMAXSIZE in bytes defined in common.h */
 
-int get_client_ip(char *ip, struct MHD_Connection *connection);
-int get_client_mac(char *mac, const char *ip);
-static int find_ip_by_mac(const char mac[18], char ip[INET6_ADDRSTRLEN]); 
+int get_client_ip(char *ip, struct MHD_Connection *connection);  
+int get_client_mac(char *mac, const char *ip);  
+static int is_ipv4_address(const char *ip);
+typedef void (*arp_entry_callback)(const char *ip, const char *mac, void *user_data);  
+static int scan_arp_table_by_interface(const char *interface, arp_entry_callback callback, void *user_data);  
+static void add_arp_device_to_client_list(const char *ip, const char *mac, void *user_data);  
 void fw_refresh_client_list(void);
 extern pthread_mutex_t config_mutex;
 static t_client *add_client(const char mac[], const char ip[]);
@@ -178,46 +181,104 @@ static void format_bytes(unsigned long long bytes, char *buf, size_t buf_size)
 } 
 
 /**  
- * @brief 通过 MAC 地址从 ARP 表查找对应的 IP 地址  
- * @param mac 要查找的 MAC 地址  
- * @param ip 输出参数,存储找到的 IP 地址  
- * @return 0 成功, -1 失败  
+ * @brief 检查是否为 IPv4 地址  
+ * @param ip IP 地址字符串  
+ * @return 1 是 IPv4, 0 不是  
  */  
 static int  
-find_ip_by_mac(const char mac[18], char ip[INET6_ADDRSTRLEN])  
+is_ipv4_address(const char *ip)  
+{  
+	struct sockaddr_in sa;  
+	return inet_pton(AF_INET, ip, &(sa.sin_addr)) == 1;  
+} 
+
+/**  
+ * @brief 从 ARP 表获取指定接口上的所有设备  
+ * @param interface 网关接口名称(如 "br0")  
+ * @param callback 回调函数,对每个找到的 IP-MAC 对调用  
+ * @param user_data 传递给回调函数的用户数据  
+ * @return 找到的设备数量  
+ */  
+typedef void (*arp_entry_callback)(const char *ip, const char *mac, void *user_data);  
+  
+static int  
+scan_arp_table_by_interface(const char *interface, arp_entry_callback callback, void *user_data)  
 {  
 	char line[255] = {0};  
-	char found_ip[INET6_ADDRSTRLEN] = {0};  
-	char found_mac[18] = {0};  
+	char ip[INET6_ADDRSTRLEN] = {0};  
+	char dev[32] = {0};  
+	char mac[18] = {0};  
 	FILE *stream;  
+	int count = 0;  
 	  
-	if (!mac || !ip) {  
-		return -1;  
+	if (!interface || !callback) {  
+		return 0;  
 	}  
 	  
 	stream = popen("ip neigh show", "r");  
 	if (!stream) {  
-		debug(LOG_ERR, "无法执行 ip neigh show 命令来查找信任设备的IP地址！");  
-		return -1;  
+		debug(LOG_ERR, "无法执行 ip neigh show 命令扫描设备添加到客户端列表！");  
+		return 0;  
 	}  
 	  
 	while (fgets(line, sizeof(line) - 1, stream) != NULL) {  
 		// 解析格式: IP dev INTERFACE lladdr MAC STATE  
-		// 例如: 192.168.1.100 dev br0 lladdr aa:bb:cc:dd:ee:ff REACHABLE  
-		if (sscanf(line, "%s %*s %*s %*s %17[A-Fa-f0-9:]", found_ip, found_mac) == 2) {  
-			if (strcasecmp(found_mac, mac) == 0) {  
-				strncpy(ip, found_ip, INET6_ADDRSTRLEN - 1);  
-				ip[INET6_ADDRSTRLEN - 1] = '\0';  
-				pclose(stream);  
-				debug(LOG_DEBUG, "在 ARP 表中找到设备 MAC【%s】对应的 IP【%s】", mac, ip);  
-				return 0;  
+		// 跳过 FAILED 状态的条目(没有 MAC 地址)  
+		if (strstr(line, "FAILED")) {  
+			continue;  
+		}  
+		  
+		// 解析 IP、接口名和 MAC 地址  
+		if (sscanf(line, "%s dev %s %*s %17[A-Fa-f0-9:]", ip, dev, mac) == 3) {  
+			// 检查是否是指定的接口  
+			if (strcmp(dev, interface) != 0) {  
+				continue;  
 			}  
+			  
+			// 只处理 IPv4 地址,跳过所有 IPv6 地址  
+			if (!is_ipv4_address(ip)) {  
+				// debug(LOG_DEBUG, "跳过 IPv6 地址的设备: %s", ip);  
+				continue;  
+			}  
+			  
+			callback(ip, mac, user_data);  
+			count++;  
 		}  
 	}  
 	  
 	pclose(stream);  
-	// debug(LOG_DEBUG, "在 ARP 表中未找到设备 MAC【%s】对应的 IP", mac);  
-	return -1;  
+	// debug(LOG_DEBUG, "在接口【%s】上找到 %d 个 ARP 条目", interface, count);  
+	return count;  
+}  
+  
+/**  
+ * @brief ARP 扫描回调函数 - 添加设备到客户端列表  
+ */  
+static void  
+add_arp_device_to_client_list(const char *ip, const char *mac, void *user_data)  
+{  
+	t_client *existing;  
+	  
+	if (!ip || !mac) {  
+		return;  
+	}  
+	  
+	// 检查是否已在客户端列表中  
+	LOCK_CLIENT_LIST();  
+	existing = client_list_find(mac, ip);  
+	  
+	if (!existing) {  
+		// 不在列表中,添加该客户端  
+		t_client *new_client = client_list_add_client(mac, ip);  
+		if (new_client) {  
+			debug(LOG_INFO, "从 ARP 表添加设备IP【%s】MAC【%s】状态【%s】到客户端列表成功！ ",   
+			      ip, mac, fw_connection_state_as_string(new_client->fw_connection_state));  
+		} else {  
+			debug(LOG_WARNING, "从 ARP 表添加设备IP【%s】MAC【%s】到客户端列表失败！", ip, mac);  
+		}  
+	}  
+	  
+	UNLOCK_CLIENT_LIST();  
 }
 
 static int admin_get_clients(struct MHD_Connection *connection) {  
@@ -249,48 +310,25 @@ static int admin_get_clients(struct MHD_Connection *connection) {
     iptables_fw_counters_update();  
     fw_refresh_client_list();  // 新增:检查到期时间并更新状态 
 
-	// 扫描 ARP 表并添加配置文件中的信任设备到客户端列表里  
+	 // 扫描 ARP 表并添加网关接口上的所有设备到客户端列表  
     config = config_get_config();  
-    if (config) {  
-        LOCK_CONFIG();  
-        t_MAC *trust_mac = config->trustedmaclist;  
-          
-        while (trust_mac != NULL) {  
-            if (trust_mac->mac && strlen(trust_mac->mac) > 0) {  
-                char ip[INET6_ADDRSTRLEN] = {0};  
-                  
-                // 尝试从 ARP 表中查找该 MAC 对应的 IP  
-                if (find_ip_by_mac(trust_mac->mac, ip) == 0) {  
-                    // 检查是否已在客户端列表中  
-                    LOCK_CLIENT_LIST();  
-                    t_client *existing = client_list_find_by_mac(trust_mac->mac);  
-                      
-                    if (!existing) {  
-                        // 不在列表中,添加该客户端  
-                        t_client *new_client = client_list_add_client(trust_mac->mac, ip);  
-                        if (new_client) {  
-                            debug(LOG_INFO, "已添加信任设备MAC【%s】IP【%s】到客户端列表！",   
-                                  trust_mac->mac, ip);  
-                        } else {  
-                            debug(LOG_WARNING, "信任设备MAC【%s】IP【%s】到客户端列表失败！",   
-                                  trust_mac->mac, ip);  
-                        }  
-                    }  
-                      
-                    UNLOCK_CLIENT_LIST();  
-                }  
-            }  
-              
-            trust_mac = trust_mac->next;  
-        }  
-          
-        UNLOCK_CONFIG();  
-    } 
+    if (config && config->gw_interface) {  
+        debug(LOG_DEBUG, "开始扫描网关接口【%s】上的 ARP 条目，检测是否已在客户端列表中...", config->gw_interface);  
+        scan_arp_table_by_interface(config->gw_interface, add_arp_device_to_client_list, NULL);  
+    }  
       
-    LOCK_CLIENT_LIST();  
+    LOCK_CLIENT_LIST(); 
+
+	// 计算所需缓冲区大小  
+	int client_count = get_client_list_length();  
+	// 每个客户端约 300 字节,加上 1KB 的元数据和安全余量  
+	size_t buffer_size = (client_count * 300) + 1024;  
+	if (buffer_size < HTMLMAXSIZE) {  
+    	buffer_size = HTMLMAXSIZE;  // 最小 4KB  
+	}
       
     // 构建 JSON 响应  
-    json_str = malloc(HTMLMAXSIZE);  
+    json_str = malloc(buffer_size);  
     if (!json_str) {  
         UNLOCK_CLIENT_LIST();  
         return send_error(connection, 500);  
@@ -299,7 +337,7 @@ static int admin_get_clients(struct MHD_Connection *connection) {
     config = config_get_config();  
       
     // 在 JSON 开头添加配置信息  
-    int offset = snprintf(json_str, HTMLMAXSIZE,   
+    int offset = snprintf(json_str, buffer_size,   
         "{\"macmechanism\":\"%s\",\"客户端数量\":%d,\"客户端信息\":{",   
         config->macmechanism == MAC_ALLOW ? "allow" : "block",  
         get_client_list_length());  
@@ -309,7 +347,7 @@ static int admin_get_clients(struct MHD_Connection *connection) {
       
     while (client != NULL) {  
         if (!first) {  
-            offset += snprintf(json_str + offset, HTMLMAXSIZE - offset, ",");  
+            offset += snprintf(json_str + offset, buffer_size - offset, ",");  
         }  
         first = 0;  
           
@@ -343,7 +381,7 @@ static int admin_get_clients(struct MHD_Connection *connection) {
     	format_bytes(client->counters.outgoing, upload_str, sizeof(upload_str));  
          
         
-        offset += snprintf(json_str + offset, HTMLMAXSIZE - offset,  
+        offset += snprintf(json_str + offset, buffer_size - offset,  
             "\"%s\":{\"客户端ID\":%lu,\"主机名\":\"%s\",\"IP地址\":\"%s\",\"MAC地址\":\"%s\","  
             "\"加入时间\":%lld,\"最后活跃时间\":%lld,\"会话持续时间\":%lld,"  
             "\"token\":\"%s\",\"状态\":\"%s\",\"已下载\":\"%s\",\"已上传\":\"%s\","  
@@ -372,7 +410,7 @@ static int admin_get_clients(struct MHD_Connection *connection) {
         client = client->next;  
     }  
       
-    offset += snprintf(json_str + offset, HTMLMAXSIZE - offset, "}}");  
+    offset += snprintf(json_str + offset, buffer_size - offset, "}}");  
       
     UNLOCK_CLIENT_LIST();  
       
